@@ -200,6 +200,10 @@
           <i data-lucide="plus" class="w-3.5 h-3.5"></i>
           <span>Thêm nhiệm vụ</span>
         </button>
+        <button id="btnAdminMergeTasks" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold transition" title="Gom nhiều nhiệm vụ gần giống nhau thành 1 nhiệm vụ gọn gàng">
+          <i data-lucide="git-merge" class="w-3.5 h-3.5"></i>
+          <span>Gom nhiệm vụ</span>
+        </button>
         <button id="btnAdminAccounts" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition">
           <i data-lucide="users" class="w-3.5 h-3.5"></i>
           <span id="btnAdminAccountsLabel">Tài khoản GV (79)</span>
@@ -696,6 +700,102 @@
   </div>
 
 
+
+  <!-- Modal: Admin Merge Similar Tasks -->
+  <div id="modalMergeTasks" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 no-print">
+    <form id="formMergeTasks" class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="p-2 rounded-xl bg-violet-100 text-violet-700">
+            <i data-lucide="git-merge" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Gom các nhiệm vụ gần giống nhau thành 1 nhiệm vụ</h2>
+            <p class="text-xs text-slate-500">Chọn từ 2 nhiệm vụ trở lên để gộp gọn danh mục, tránh rối bảng đánh giá của giáo viên.</p>
+          </div>
+        </div>
+        <button id="btnCloseMergeTasks" type="button" class="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-4 sm:p-5 overflow-y-auto space-y-4 text-xs sm:text-sm">
+        <!-- Quick preset suggestions -->
+        <div class="space-y-1.5">
+          <div class="text-xs font-bold text-slate-600">Gợi ý cặp nhiệm vụ hay gom nhanh:</div>
+          <div class="flex flex-wrap gap-1.5">
+            <button type="button" data-merge-preset="gvbm-1,gvbm-2" data-preset-title="Xây dựng kế hoạch bài dạy và thực hiện giờ dạy theo phân công" class="px-2.5 py-1 rounded-lg bg-violet-50 hover:bg-violet-100 border border-violet-200 text-violet-800 text-xs font-semibold transition">Giờ dạy + KHBD (STT 1+2)</button>
+            <button type="button" data-merge-preset="gvbm-10,gvbm-11" data-preset-title="Xây dựng học liệu số, công cụ đánh giá và ngân hàng câu hỏi" class="px-2.5 py-1 rounded-lg bg-violet-50 hover:bg-violet-100 border border-violet-200 text-violet-800 text-xs font-semibold transition">Học liệu số + Ngân hàng câu hỏi (STT 10+11)</button>
+            <button type="button" data-merge-preset="gvbm-12,gvbm-13" data-preset-title="Giải pháp mũi nhọn, chia sẻ ứng dụng AI và báo cáo chuyên đề cụm" class="px-2.5 py-1 rounded-lg bg-violet-50 hover:bg-violet-100 border border-violet-200 text-violet-800 text-xs font-semibold transition">Mũi nhọn + Ứng dụng AI (STT 12+13)</button>
+            <button type="button" data-merge-preset="gvcn-3,gvcn-4" data-preset-title="Tổ chức sinh hoạt lớp, theo dõi nền nếp và phối hợp gia đình, GVBM" class="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 text-xs font-semibold transition">Sinh hoạt lớp + Nền nếp, phối hợp (GVCN 3+4)</button>
+          </div>
+        </div>
+
+        <!-- Select tasks to merge -->
+        <div class="space-y-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span id="mergeSelectedCount" class="text-xs font-bold text-violet-900">1. Chọn các nhiệm vụ cần gom (đã chọn: 0)</span>
+            <select id="mergeRoleFilter" class="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-xs font-semibold">
+              <option value="all">Tất cả (GVBM + GVCN)</option>
+              <option value="gvbm">Chỉ GV Bộ môn</option>
+              <option value="gvcn">Chỉ GV Chủ nhiệm</option>
+            </select>
+          </div>
+          <div id="mergeTasksList" class="max-h-48 overflow-y-auto border border-slate-200 rounded-xl p-2 space-y-1 bg-slate-50/50 text-xs"></div>
+        </div>
+
+        <!-- Merged task details -->
+        <div class="p-3.5 rounded-xl bg-violet-50/60 border border-violet-200 space-y-3">
+          <div class="text-xs font-bold text-violet-950">2. Thông tin nhiệm vụ sau khi gom</div>
+          <div>
+            <label for="mergeNewTitle" class="block text-xs font-semibold text-slate-700 mb-1">Tên nhiệm vụ gộp *</label>
+            <input id="mergeNewTitle" type="text" required placeholder="Nhập tên gọn cho nhiệm vụ sau khi gom..." class="w-full px-3 py-2 rounded-xl border border-violet-300 bg-white text-xs sm:text-sm font-semibold" />
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div>
+              <label for="mergeNewRole" class="block text-xs font-semibold text-slate-700 mb-1">Thuộc vai trò</label>
+              <select id="mergeNewRole" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs">
+                <option value="gvbm">GV Bộ môn</option>
+                <option value="gvcn">GV Chủ nhiệm</option>
+              </select>
+            </div>
+            <div>
+              <label for="mergeNewPhase" class="block text-xs font-semibold text-slate-700 mb-1">Giai đoạn</label>
+              <select id="mergeNewPhase" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs">
+                <option value="core">Nhiệm vụ cơ bản đầu quý</option>
+                <option value="optional">Chuyên sâu &amp; Khuyến khích</option>
+              </select>
+            </div>
+            <div>
+              <label for="mergeNewPoints" class="block text-xs font-semibold text-slate-700 mb-1">Nhóm điểm chuẩn</label>
+              <select id="mergeNewPoints" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs">
+                <option value="100">Nhóm 1 — 100 điểm</option>
+                <option value="150">Nhóm 2 — 150 điểm</option>
+                <option value="200">Nhóm 3 — 200 điểm</option>
+                <option value="250">Nhóm 4 — 250 điểm</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-4 pt-1">
+            <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+              <input type="radio" name="mergeSourceAction" value="hide" checked class="text-violet-600" />
+              <span>Ẩn các nhiệm vụ gốc (khuyên dùng — dễ khôi phục)</span>
+            </label>
+            <label class="inline-flex items-center gap-2 text-xs font-semibold text-rose-700 cursor-pointer">
+              <input type="radio" name="mergeSourceAction" value="delete" class="text-rose-600" />
+              <span>Xóa hẳn các nhiệm vụ gốc</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-5 py-3.5 border-t border-slate-200 bg-slate-50 flex justify-end gap-2">
+        <button id="btnCancelMergeTasks" type="button" class="px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-100">Hủy</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-xs font-bold text-white shadow-sm">Gom thành 1 nhiệm vụ</button>
+      </div>
+    </form>
+  </div>
+
   <!-- Modal: Tổ Trưởng / Admin Ấn định số lượng từng nhiệm vụ -->
   <div id="modalAssignQuota" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 no-print">
     <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
@@ -849,6 +949,34 @@
           <label for="editTaskNote" class="block text-xs font-semibold text-slate-700 mb-1">Ghi chú / Lưu ý tránh chấm trùng</label>
           <input id="editTaskNote" type="text" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm" />
         </div>
+        <div class="p-3 rounded-xl bg-sky-50/70 border border-sky-200 space-y-2.5">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <label for="editTaskScope" class="text-xs font-bold text-sky-950">Phạm vi giao nhiệm vụ</label>
+            <select id="editTaskScope" class="px-2.5 py-1 rounded-lg border border-sky-300 bg-white text-xs font-semibold text-slate-800">
+              <option value="all">Áp dụng chung (toàn trường theo vai trò)</option>
+              <option value="specific">Ấn định riêng cho giáo viên cụ thể</option>
+            </select>
+          </div>
+          <div id="editTaskAssignBox" class="hidden space-y-2">
+            <div class="flex flex-col sm:flex-row gap-2">
+              <input id="editTaskAssignSearch" type="text" placeholder="Tìm nhanh tên hoặc tài khoản GV..." class="flex-1 px-2.5 py-1.5 rounded-lg border border-sky-200 bg-white text-xs" />
+              <select id="editTaskAssignDept" class="px-2.5 py-1.5 rounded-lg border border-sky-200 bg-white text-xs"></select>
+            </div>
+            <div id="editTaskAssignSelectedInfo" class="text-[11px] font-semibold text-sky-900">Đã chọn: 0 giáo viên</div>
+            <div id="editTaskAssignList" class="max-h-40 overflow-y-auto bg-white border border-sky-200 rounded-lg p-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs"></div>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-purple-50/70 border border-purple-200 space-y-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <label for="editTaskExceedCriteria" class="text-xs font-bold text-purple-950">Tiêu chí nhận diện “Vượt mức yêu cầu” (Admin chỉnh sửa trước khi ban hành)</label>
+            <label class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer">
+              <input id="editTaskNoExceed" type="checkbox" class="rounded border-slate-300 text-slate-600" />
+              <span>Không xét vượt mức (chỉ Đạt/Không đạt)</span>
+            </label>
+          </div>
+          <textarea id="editTaskExceedCriteria" rows="2" placeholder="Ghi rõ tiêu chí ứng dụng thực tiễn, đổi mới sáng tạo, công nghệ số..." class="w-full px-3 py-1.5 rounded-lg border border-purple-200 bg-white text-xs"></textarea>
+        </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl bg-amber-50/70 border border-amber-200">
           <div>
@@ -924,6 +1052,14 @@
             <span class="text-xs sm:text-sm font-medium text-slate-800">Nút “Quy định &amp; Tính thử KPI”</span>
             <input id="cfgShowRulesBtn" type="checkbox" class="rounded border-slate-300 text-indigo-600 w-4 h-4" />
           </label>
+        </div>
+
+        <div class="space-y-2 pt-2 border-t border-slate-200">
+          <div class="text-xs font-bold uppercase tracking-wider text-slate-500">Quy chế xét điều kiện “Hoàn thành xuất sắc” (khi tổng điểm ≥ 90)</div>
+          <select id="cfgExcellentRule" class="w-full px-3 py-2 rounded-xl border border-indigo-200 bg-indigo-50/40 text-xs sm:text-sm font-semibold text-slate-800">
+            <option value="either">Đạt 1 trong 2: ≥ 30% nhiệm vụ vượt mức HOẶC có nhiệm vụ trọng tâm/sản phẩm nổi trội</option>
+            <option value="both">Đạt đồng thời cả 2 (chuẩn CV 5142): ≥ 30% nhiệm vụ vượt mức VÀ có sản phẩm nổi trội/đổi mới sáng tạo</option>
+          </select>
         </div>
 
         <div class="space-y-2.5 pt-2 border-t border-slate-200">
@@ -1135,406 +1271,434 @@
     // DỮ LIỆU GỐC TRÍCH XUẤT NGUYÊN BẢN TỪ KPI.PDF (Sở GD&ĐT Lâm Đồng - CV 5142)
     // =========================================================================
     const DEFAULT_TASKS_DATA = [
-      // ---------------- GIÁO VIÊN BỘ MÔN: NHIỆM VỤ CƠ BẢN ĐẦU QUÝ ----------------
-      {
-        id: "gvbm-1", stt: 1, role: "gvbm", phase: "core", hidden: false,
-        title: "Thực hiện giờ dạy được phân công",
-        groupLabel: "Nhóm 1: Thường xuyên, theo kế hoạch chuyên môn",
-        points: 100, pointsDisplay: "100",
-        product: "Tiết dạy theo phân công và thời khóa biểu được thực hiện.",
-        quality: "Đúng nội dung, đối tượng và thời khóa biểu; Nội dung chính xác, bám yêu cầu cần đạt; tổ chức hoạt động phù hợp học sinh, có kiểm tra mức độ tiếp thu và điều chỉnh hỗ trợ. Ký sổ đầu bài đầy đủ.",
-        progress: "Dạy đúng lịch, đủ thời lượng. (Vào dạy muộn trên 5 phút được coi là chậm tiến độ, trên 15 phút được coi là không thực hiện).",
-        evidence: "Phân công chuyên môn; thời khóa biểu; sổ đầu bài.",
-        note: "", alert: "Muộn > 5 phút = chậm tiến độ; > 15 phút = không thực hiện",
-        defaultSelected: true, unitHint: "VD: 17 tiết/tuần"
-      },
-      {
-        id: "gvbm-2", stt: 2, role: "gvbm", phase: "core", hidden: false,
-        title: "Xây dựng kế hoạch bài dạy",
-        groupLabel: "Nhóm 1: Thường xuyên, theo chương trình và kế hoạch giáo dục",
-        points: 100, pointsDisplay: "100",
-        product: "Kế hoạch bài dạy của bài học hoặc chủ đề.",
-        quality: "Bám sát yêu cầu cần đạt trong KHGD của tổ chuyên môn, môn học đã được phê duyệt; hoạt động, đánh giá phù hợp; nội dung chính xác; hoạt động học, sản phẩm và cách đánh giá thống nhất. Phù hợp thời lượng, có hỗ trợ và phân hóa học sinh.",
-        progress: "Hoàn thành và tải lên hệ thống vnedu.vn trước ngày thứ 2 của tuần mới.",
-        evidence: "Kế hoạch bài dạy; học liệu kèm theo; nhận xét chuyên môn.",
-        note: "Không tính lại kế hoạch bồi dưỡng, phụ đạo đã ghi riêng ở nhiệm vụ 5, 7.",
-        alert: "Tải lên vnedu.vn trước ngày Thứ 2 tuần mới",
-        defaultSelected: true, unitHint: "VD: Theo tuần / bài học"
-      },
-      {
-        id: "gvbm-3", stt: 3, role: "gvbm", phase: "core", hidden: false,
-        title: "Xây dựng ma trận và bản đặc tả đề kiểm tra định kỳ",
-        groupLabel: "Nhóm 1: Nghiệp vụ định kỳ, theo yêu cầu đã xác định",
-        points: 100, pointsDisplay: "100",
-        product: "Bộ ma trận và bản đặc tả cho đề kiểm tra được phân công.",
-        quality: "Xác định đúng phạm vi kiến thức, thời điểm, thời lượng và hình thức kiểm tra theo kế hoạch đã được phê duyệt. Nội dung đánh giá bám yêu cầu cần đạt của chương trình và nội dung đã tổ chức dạy học. Ma trận thể hiện rõ các chủ đề, mức độ đánh giá, số câu và số điểm; tổng số câu, điểm và tỷ lệ thống nhất, chính xác. Bản đặc tả mô tả cụ thể yêu cầu cần đánh giá, mức độ và số câu tương ứng; không chỉ ghi tên kiến thức chung chung. Ma trận và bản đặc tả khớp nhau, phù hợp đối tượng học sinh và có thể dùng làm căn cứ biên soạn, thẩm định đề.",
-        progress: "Hoàn thành, trình duyệt theo lịch được giao.",
-        evidence: "Ma trận; bản đặc tả.",
-        note: "Một bộ thống nhất là một sản phẩm nếu được giao chung.",
-        alert: "", defaultSelected: true, unitHint: "VD: 1–2 bộ/quý"
-      },
-      {
-        id: "gvbm-4", stt: 4, role: "gvbm", phase: "core", hidden: false,
-        title: "Xây dựng đề kiểm tra định kỳ",
-        groupLabel: "Nhóm 1: Nghiệp vụ định kỳ, có quy trình biên soạn và thẩm định",
-        points: 100, pointsDisplay: "100",
-        product: "Đề, đáp án và hướng dẫn chấm.",
-        quality: "Đề phù hợp ma trận và bản đặc tả về nội dung, mức độ, dạng câu hỏi, số câu và điểm số. Câu hỏi chính xác về kiến thức; dữ kiện đầy đủ; diễn đạt rõ, không gây hiểu nhầm; hình vẽ, bảng biểu và ký hiệu đúng. Khối lượng và độ khó phù hợp thời gian làm bài, đối tượng học sinh và mục đích đánh giá. Có đáp án, hướng dẫn chấm đầy đủ, chính xác; phân bổ điểm hợp lý và thống nhất với đề. Các mã đề, nếu có, bảo đảm tương đương về nội dung, mức độ và thời lượng; đáp án khớp từng mã. Được rà soát, giải thử, hoàn thiện và bàn giao theo quy trình bảo mật của nhà trường.",
-        progress: "Hoàn thành và bàn giao đúng lịch; bảo mật trong quá trình thực hiện. (Đối với các môn không kiểm tra tập trung thực hiện đúng theo phân phối chương trình).",
-        evidence: "Bộ đề; đáp án.",
-        note: "", alert: "Bàn giao đúng lịch & bảo mật quy trình",
-        defaultSelected: true, unitHint: "VD: 1–2 bộ đề/quý"
-      },
-      {
-        id: "gvbm-9", stt: 9, role: "gvbm", phase: "core", hidden: false,
-        title: "Coi kiểm tra định kỳ",
-        groupLabel: "Nhóm 1: Thực hiện theo phân công và quy trình",
-        points: 100, pointsDisplay: "100",
-        product: "Ca coi kiểm tra; bài làm và hồ sơ phòng kiểm tra được bàn giao.",
-        quality: "Thực hiện đúng nhiệm vụ; giám sát nghiêm túc, công bằng; không làm việc riêng hoặc hỗ trợ học sinh trái quy định; kiểm đếm bài, hoàn thiện hồ sơ, ký xác nhận và bàn giao đầy đủ; bảo đảm không thất lạc hoặc nhầm lẫn do lỗi chủ quan. Xử lý, báo cáo tình huống bất thường đúng phạm vi trách nhiệm.",
-        progress: "Có mặt, phát đề, tính giờ, thu bài và bàn giao đúng lịch.",
-        evidence: "Phân công; danh sách phòng; hồ sơ coi kiểm tra; biên bản sự việc nếu có; xác nhận giao nhận.",
-        note: "Tính theo ca được giao.", alert: "",
-        defaultSelected: true, unitHint: "VD: Theo số ca phân công"
-      },
-      {
-        id: "gvbm-10", stt: 10, role: "gvbm", phase: "core", hidden: false,
-        title: "Tham gia các cuộc họp",
-        groupLabel: "Nhóm 1: Nhiệm vụ thường xuyên",
-        points: 100, pointsDisplay: "100",
-        product: "Buổi họp tham gia; tài liệu, báo cáo hoặc ý kiến theo phân công.",
-        quality: "Chuẩn bị nội dung khi được yêu cầu; nắm kết luận, nhiệm vụ liên quan. Báo cáo, ý kiến được giao đúng trọng tâm, có căn cứ.",
-        progress: "Tham dự đúng lịch, đủ thời gian; nộp tài liệu theo hạn yêu cầu. (Vào họp muộn sau 5 phút khi chủ trì triển khai nội dung được coi là chậm tiến độ, trên 15 phút được tính là không tham gia).",
-        evidence: "Biên bản; tài liệu được giao chuẩn bị.",
-        note: "", alert: "Muộn > 5 phút = chậm tiến độ; > 15 phút = không tham gia",
-        defaultSelected: true, unitHint: "VD: Theo lịch họp quý"
-      },
-      {
-        id: "gvbm-11", stt: 11, role: "gvbm", phase: "core", hidden: false,
-        title: "Tham gia sinh hoạt chuyên môn",
-        groupLabel: "Nhóm 1: Hoạt động chuyên môn thường xuyên",
-        points: 100, pointsDisplay: "100",
-        product: "Buổi sinh hoạt tham gia; nội dung chuẩn bị, góp ý hoặc sản phẩm được phân công.",
-        quality: "Chuẩn bị nội dung theo phân công; ý kiến trao đổi chính xác về chuyên môn, tập trung vào việc học của học sinh và những khó khăn thực tế trong dạy học. Sản phẩm được giao như bài dạy minh họa, phiếu phân tích, nhận xét hoặc chuyên đề đáp ứng mục tiêu buổi sinh hoạt. Xác định được nội dung có thể vận dụng hoặc điều chỉnh trong thực tiễn giảng dạy.",
-        progress: "Tham gia đúng lịch; hoàn thành phần việc theo phân công.",
-        evidence: "Biên bản; tài liệu chuẩn bị; phiếu phân tích, góp ý; sản phẩm chuyên môn.",
-        note: "Không tính lại sản phẩm đã chấm ở nhiệm vụ chuyên đề hoặc báo cáo riêng.",
-        alert: "", defaultSelected: true, unitHint: "VD: 2 buổi/tháng"
-      },
-      {
-        id: "gvbm-12", stt: 12, role: "gvbm", phase: "core", hidden: false,
-        title: "Tham gia bồi dưỡng chuyên môn",
-        groupLabel: "Nhóm 1: Hoạt động bồi dưỡng theo kế hoạch",
-        points: 100, pointsDisplay: "100",
-        product: "Khóa hoặc đợt bồi dưỡng; bài thu hoạch, bài thực hành hoặc sản phẩm cuối khóa.",
-        quality: "Đáp ứng yêu cầu học tập và đánh giá; sản phẩm chính xác, thể hiện hiểu biết và khả năng vận dụng.",
-        progress: "Tham gia, hoàn thành bài tập và nộp sản phẩm đúng lịch của chương trình.",
-        evidence: "Quyết định hoặc phân công; xác nhận tham gia; bài thu hoạch; sản phẩm; kết quả đánh giá.",
-        note: "Không bắt buộc chứng chỉ nếu chương trình không cấp.",
-        alert: "", defaultSelected: true, unitHint: "VD: Theo kế hoạch bồi dưỡng"
-      },
-      {
-        id: "gvbm-13", stt: 13, role: "gvbm", phase: "core", hidden: false,
-        title: "Hoàn thiện hồ sơ và báo cáo chuyên môn",
-        groupLabel: "Nhóm 1: Công việc thường xuyên, theo biểu mẫu",
-        points: 100, pointsDisplay: "100",
-        product: "Bộ hồ sơ chuyên môn; báo cáo định kỳ hoặc theo yêu cầu.",
-        quality: "Đủ thành phần, thông tin chính xác, thống nhất; báo cáo trung thực, có căn cứ, chỉ rõ kết quả và vấn đề cần xử lý. Hồ sơ dễ tra cứu.",
-        progress: "Cập nhật, trình kiểm tra và nộp đúng hạn.",
-        evidence: "Hồ sơ; báo cáo; dữ liệu nguồn; xác nhận tiếp nhận; phiếu kiểm tra.",
-        note: "Chỉ tính nội dung chưa được chấm riêng ở dòng khác.",
-        alert: "", defaultSelected: true, unitHint: "VD: 1 bộ hồ sơ/quý"
-      },
-      {
-        id: "gvbm-14", stt: 14, role: "gvbm", phase: "core", hidden: false,
-        title: "Cập nhật điểm lên hệ thống vnEdu",
-        groupLabel: "Nhóm 1: Nghiệp vụ thường xuyên, quy trình rõ",
-        points: 100, pointsDisplay: "100",
-        product: "Dữ liệu điểm được nhập, kiểm tra và đối soát trên hệ thống.",
-        quality: "Đúng học sinh, lớp, môn, cột điểm và kỳ đánh giá; khớp bài chấm, sổ theo dõi; đủ dữ liệu thuộc trách nhiệm. Điều chỉnh có căn cứ, bảo mật tài khoản.",
-        progress: "Cập nhật, rà soát trước hạn chốt điểm theo kế hoạch của trường.",
-        evidence: "Bài chấm hoặc bảng điểm gốc; dữ liệu xuất; bảng đối soát; lịch sử chỉnh sửa nếu có.",
-        note: "Phân biệt nhiệm vụ nhập điểm với chấm bài.",
-        alert: "Rà soát trước hạn chốt điểm vnEdu",
-        defaultSelected: true, unitHint: "VD: Theo các lớp giảng dạy"
-      },
-
-      // ---------------- GIÁO VIÊN BỘ MÔN: CHUYÊN SÂU / THEO PHÂN CÔNG / KHUYẾN KHÍCH ----------------
-      {
-        id: "gvbm-5", stt: 5, role: "gvbm", phase: "optional", subTag: "Theo phân công", hidden: false,
-        title: "Xây dựng chuyên đề bồi dưỡng học sinh giỏi",
-        groupLabel: "Nhóm 2: Yêu cầu chuyên sâu, tổng hợp và phân hóa cao hơn bài dạy thường xuyên",
-        points: 150, pointsDisplay: "150",
-        product: "Chuyên đề bồi dưỡng; hệ thống bài tập và lời giải.",
-        quality: "Xác định mục tiêu cụ thể về kiến thức chuyên sâu, kỹ năng giải quyết vấn đề và năng lực tư duy, phù hợp trình độ đội tuyển và kế hoạch bồi dưỡng. Nội dung chính xác, có hệ thống; làm rõ kiến thức nền, phương pháp trọng tâm và hướng mở rộng. Hệ thống bài tập có tính phân hóa, tiến triển về độ khó; có lời giải hoặc định hướng giải đã được kiểm tra. Hoạt động tạo cơ hội để học sinh tự tìm cách giải, lập luận, so sánh phương pháp và khái quát hóa. Xác định rõ sản phẩm học tập, cách đánh giá, nhiệm vụ tự luyện và phương án hỗ trợ từng nhóm học sinh. Phân bổ thời gian khả thi, phù hợp số tiết được giao.",
-        progress: "Hoàn thành và tải lên hệ thống vnedu.vn trước ngày thứ 2 của tuần mới.",
-        evidence: "Chuyên đề; bài tập, lời giải.",
-        note: "", alert: "Tải lên vnedu.vn trước Thứ 2 tuần mới",
-        defaultSelected: false, unitHint: "VD: Số chuyên đề được giao"
-      },
-      {
-        id: "gvbm-6", stt: 6, role: "gvbm", phase: "optional", subTag: "Theo phân công", hidden: false,
-        title: "Dạy bồi dưỡng học sinh giỏi",
-        groupLabel: "Nhóm 2: Dạy học chuyên sâu, cần xử lý vấn đề và hỗ trợ phân hóa",
-        points: 150, pointsDisplay: "150",
-        product: "Tiết hoặc buổi bồi dưỡng được thực hiện; kết quả đánh giá học tập của đội tuyển.",
-        quality: "Thực hiện đúng nội dung, thời lượng và đối tượng được phân công; điều chỉnh hoạt động phù hợp diễn biến học tập. Kiến thức, lời giải và lập luận chính xác; làm rõ phương pháp, điều kiện áp dụng và các sai lầm thường gặp. Học sinh được trực tiếp giải quyết bài toán, trình bày, bảo vệ và trao đổi cách giải; có sản phẩm học tập để kiểm chứng. Giáo viên phát hiện khó khăn, phản hồi cụ thể và giao nhiệm vụ phân hóa theo mức độ đáp ứng của học sinh. Có kiểm tra mức đạt mục tiêu của tiết học và ghi nhận nội dung cần tiếp tục bồi dưỡng. Giao nhiệm vụ tự luyện phù hợp, có hướng dẫn và theo dõi kết quả.",
-        progress: "Dạy đúng lịch, đủ thời lượng. (Vào dạy muộn trên 5 phút được coi là chậm tiến độ, trên 15 phút được coi là không thực hiện).",
-        evidence: "Lịch bồi dưỡng; sổ đầu bài.",
-        note: "", alert: "Muộn > 5 phút = chậm tiến độ; > 15 phút = không thực hiện",
-        defaultSelected: false, unitHint: "VD: Số buổi/tiết bồi dưỡng"
-      },
-      {
-        id: "gvbm-7", stt: 7, role: "gvbm", phase: "optional", subTag: "Theo phân công", hidden: false,
-        title: "Xây dựng chuyên đề phụ đạo học sinh chưa đạt",
-        groupLabel: "Nhóm 1: Nhiệm vụ chuyên môn theo kế hoạch hỗ trợ",
-        points: 100, pointsDisplay: "100",
-        product: "Chuyên đề phụ đạo; bài tập, học liệu và công cụ kiểm tra ngắn.",
-        quality: "Xuất phát từ kiến thức, kỹ năng học sinh còn thiếu; mục tiêu vừa sức, kiểm tra được. Nội dung chia bước rõ, có hướng dẫn, luyện tập và phương án hỗ trợ theo khó khăn.",
-        progress: "Hoàn thành và tải lên hệ thống vnedu.vn trước ngày thứ 2 của tuần mới.",
-        evidence: "Chuyên đề.",
-        note: "", alert: "Tải lên vnedu.vn trước Thứ 2 tuần mới",
-        defaultSelected: false, unitHint: "VD: Số chuyên đề phụ đạo"
-      },
-      {
-        id: "gvbm-8", stt: 8, role: "gvbm", phase: "optional", subTag: "Theo phân công", hidden: false,
-        title: "Dạy phụ đạo học sinh chưa đạt",
-        groupLabel: "Nhóm 1: Nhiệm vụ hỗ trợ học sinh theo phân công",
-        points: 100, pointsDisplay: "100",
-        product: "Tiết hoặc buổi phụ đạo; bài làm và ghi nhận mức tiến bộ của học sinh.",
-        quality: "Hướng dẫn rõ, vừa sức; học sinh được thực hành, sửa lỗi và nhận phản hồi. Có kiểm tra mức đạt mục tiêu và xác định nội dung cần hỗ trợ tiếp.",
-        progress: "Dạy đúng lịch, đủ thời lượng. (Vào dạy muộn trên 5 phút được coi là chậm tiến độ, trên 15 phút được coi là không thực hiện).",
-        evidence: "Danh sách tham gia; sổ theo dõi.",
-        note: "", alert: "Muộn > 5 phút = chậm tiến độ; > 15 phút = không thực hiện",
-        defaultSelected: false, unitHint: "VD: Số buổi/tiết phụ đạo"
-      },
-      {
-        id: "gvbm-15", stt: 15, role: "gvbm", phase: "optional", subTag: "Theo phân công", hidden: false,
-        title: "Xây dựng học liệu, học liệu số",
-        groupLabel: "Nhóm 1: Sản phẩm chuyên môn theo yêu cầu xác định",
-        points: 100, pointsDisplay: "100",
-        product: "Bộ học liệu, phiếu học tập, bài trình chiếu, video hoặc học liệu số được giao.",
-        quality: "Chính xác, bám mục tiêu, phù hợp học sinh; trình bày rõ, có hướng dẫn. Tệp, liên kết và chức năng hoạt động trên thiết bị dự kiến; ghi nguồn phù hợp, bảo vệ dữ liệu cá nhân.",
-        progress: "Hoàn thành, kiểm tra trước khi sử dụng hoặc bàn giao theo lịch, kế hoạch.",
-        evidence: "Học liệu; đường dẫn, tệp; kết quả kiểm tra; xác nhận sử dụng hoặc bàn giao.",
-        note: "Sản phẩm mới, phức tạp có thể đề xuất nhóm khác khi có căn cứ.",
-        alert: "", defaultSelected: false, unitHint: "VD: Số bộ học liệu số"
-      },
-      {
-        id: "gvbm-16", stt: 16, role: "gvbm", phase: "optional", subTag: "Theo phân công", hidden: false,
-        title: "Xây dựng ngân hàng câu hỏi theo chủ đề",
-        groupLabel: "Nhóm 2: Sản phẩm tổng hợp, cần phân loại và kiểm định nhiều câu hỏi",
-        points: 150, pointsDisplay: "150",
-        product: "Ngân hàng câu hỏi được phân loại; đáp án, lời giải và hướng dẫn chấm.",
-        quality: "Bám yêu cầu cần đạt; phân loại rõ chủ đề, mức độ, dạng câu hỏi. Câu hỏi chính xác, không mơ hồ, hạn chế trùng lặp; đáp án và hướng dẫn chấm thống nhất. Có mã quản lý, thuận tiện tra cứu.",
-        progress: "Hoàn thành biên soạn, rà soát, chỉnh sửa và bàn giao theo mốc được giao.",
-        evidence: "Ngân hàng câu hỏi; bảng phân loại; đáp án; phiếu phản biện, thẩm định; xác nhận bàn giao.",
-        note: "Nếu chỉ đóng góp ít câu theo mẫu thông thường, xem xét nhóm 1.",
-        alert: "", defaultSelected: false, unitHint: "VD: Số chủ đề / câu hỏi"
-      },
-      {
-        id: "gvbm-17", stt: 17, role: "gvbm", phase: "optional", subTag: "Theo phân công", hidden: false,
-        title: "Xây dựng công cụ kiểm tra, đánh giá",
-        groupLabel: "Nhóm 1: Công cụ phục vụ đánh giá theo mục tiêu xác định",
-        points: 100, pointsDisplay: "100",
-        product: "Bảng kiểm, bảng tiêu chí đánh giá, phiếu quan sát, nhiệm vụ đánh giá hoặc công cụ tương ứng.",
-        quality: "Phù hợp mục tiêu và đối tượng; tiêu chí rõ, quan sát hoặc đo được; có hướng dẫn sử dụng, mức đánh giá hoặc thang điểm nhất quán. Được rà soát trước khi áp dụng.",
-        progress: "Hoàn thành trước hoạt động đánh giá theo kế hoạch.",
-        evidence: "Công cụ; hướng dẫn; phiếu góp ý; kết quả sử dụng thử nếu được giao.",
-        note: "Không tính lại ma trận, đặc tả và đề đã ghi ở nhiệm vụ 3, 4.",
-        alert: "", defaultSelected: false, unitHint: "VD: Số bộ bảng kiểm/rubric"
-      },
-      {
-        id: "gvbm-18", stt: 18, role: "gvbm", phase: "optional", subTag: "Theo phân công", hidden: false,
-        title: "Làm các sản phẩm chuyên môn phục vụ dạy học, giáo dục",
-        groupLabel: "Nhóm 1: Sản phẩm theo yêu cầu chuyên môn cụ thể",
-        points: 100, pointsDisplay: "100",
-        product: "Mô hình, đồ dùng, tài liệu hướng dẫn hoặc sản phẩm chuyên môn được giao.",
-        quality: "Đáp ứng mục tiêu, thông số và yêu cầu sử dụng; chính xác, khả thi, an toàn; có hướng dẫn khi cần. Được kiểm tra, chỉnh sửa trước bàn giao.",
-        progress: "Hoàn thành theo mốc thiết kế, thử nghiệm và nghiệm thu được giao.",
-        evidence: "Sản phẩm; bản mô tả; hồ sơ kiểm tra, dùng thử; xác nhận nghiệm thu.",
-        note: "Ghi tên sản phẩm cụ thể; không dùng dòng này để tính lại học liệu hoặc công cụ đã chấm riêng.",
-        alert: "", defaultSelected: false, unitHint: "VD: Ghi tên sản phẩm cụ thể"
-      },
-      {
-        id: "gvbm-19", stt: 19, role: "gvbm", phase: "optional", subTag: "Khuyến khích", hidden: false,
-        title: "Đưa ra giải pháp nâng cao chất lượng giáo dục mũi nhọn, bồi dưỡng HSG, nghiên cứu KHKT, chuẩn bị các kỳ thi",
-        groupLabel: "Nhóm 2: Nhiệm vụ mới hoặc trọng tâm, cần tổng hợp và phối hợp",
-        points: 150, pointsDisplay: "150",
-        product: "Đề xuất giải pháp hoặc kế hoạch; bộ tài liệu, phương án triển khai và kết quả thử nghiệm nếu được giao.",
-        quality: "Xuất phát từ thực trạng; mục tiêu, biện pháp, nguồn lực và tiêu chí đánh giá rõ. Nội dung chính xác, khả thi; phù hợp đối tượng và yêu cầu kỳ thi. Với nghiên cứu KHKT, làm rõ phương pháp, dữ liệu và đóng góp thực chất của học sinh.",
-        progress: "Trình giải pháp, thực hiện phần việc theo các mốc được giao.",
-        evidence: "Bản giải pháp; dữ liệu thực trạng; kế hoạch; góp ý, phê duyệt; minh chứng thử nghiệm hoặc triển khai.",
-        note: "Nhiệm vụ được khuyến khích nên tiến độ sẽ tính luôn đạt.",
-        alert: "Nhiệm vụ khuyến khích — Tiến độ tính luôn đạt",
-        defaultSelected: false, unitHint: "VD: 1 giải pháp/kế hoạch"
-      },
-      {
-        id: "gvbm-20", stt: 20, role: "gvbm", phase: "optional", subTag: "Khuyến khích", hidden: false,
-        title: "Chia sẻ kinh nghiệm ứng dụng AI và công nghệ số trong dạy học, KTĐG, tư vấn hướng nghiệp và quản trị chuyên môn",
-        groupLabel: "Nhóm 2: Nội dung mới, cần tổng hợp, thử nghiệm và hướng dẫn vận dụng",
-        points: 150, pointsDisplay: "150",
-        product: "Chuyên đề chia sẻ; tài liệu hướng dẫn; sản phẩm minh họa hoặc buổi thực hành.",
-        quality: "Giải quyết nhu cầu thực tế; quy trình đủ rõ để tham khảo, thực hành. Sản phẩm được kiểm chứng về độ chính xác; nêu giới hạn, nội dung cần con người kiểm tra; bảo đảm bảo mật, bản quyền.",
-        progress: "Chuẩn bị, chia sẻ và bàn giao tài liệu theo kế hoạch.",
-        evidence: "Chuyên đề; tài liệu, sản phẩm mẫu; chương trình; biên bản; phản hồi người tham gia.",
-        note: "Nhiệm vụ được khuyến khích nên tiến độ sẽ tính luôn đạt.",
-        alert: "Nhiệm vụ khuyến khích — Tiến độ tính luôn đạt",
-        defaultSelected: false, unitHint: "VD: 1 chuyên đề chia sẻ AI"
-      },
-      {
-        id: "gvbm-21", stt: 21, role: "gvbm", phase: "optional", subTag: "Theo cuộc thi", hidden: false,
-        title: "Tham gia các cuộc thi do cấp trên tổ chức",
-        groupLabel: "Xác định theo nhiệm vụ dự thi (Nhóm 1–4), không theo hạng giải",
-        points: 150, pointsDisplay: "100 / 150 / 200 / 250", flexiblePoints: true,
-        product: "Hồ sơ, sản phẩm hoặc phần thi hoàn thành; kết quả dự thi và quyết định công nhận giải nếu có.",
-        quality: "Sản phẩm đúng chủ đề, thể lệ; chính xác, trung thực, thể hiện đóng góp của cá nhân; đáp ứng yêu cầu dự thi.",
-        progress: "Đăng ký, nộp sản phẩm và tham gia các vòng thi đúng lịch.",
-        evidence: "Văn bản phân công; thể lệ; hồ sơ, sản phẩm dự thi; xác nhận tham gia; quyết định hoặc giấy chứng nhận giải.",
-        note: "Giải thưởng ghi nhận ở kết quả nổi trội, không tự cộng điểm ngoài thang.",
-        alert: "", defaultSelected: false, unitHint: "VD: Tên cuộc thi dự kiến"
-      },
-      {
-        id: "gvbm-22", stt: 22, role: "gvbm", phase: "optional", subTag: "Khuyến khích", hidden: false,
-        title: "Trình bày báo cáo chuyên đề tại sinh hoạt cụm chuyên môn",
-        groupLabel: "Nhóm 2: Chuyên đề tổng hợp, chia sẻ trong phạm vi liên trường",
-        points: 150, pointsDisplay: "150",
-        product: "Báo cáo chuyên đề; tài liệu, sản phẩm minh họa; phần trình bày, trao đổi theo phân công.",
-        quality: "Đúng chủ đề, chính xác; làm rõ vấn đề, cách thực hiện và khả năng vận dụng. Minh họa có căn cứ; trình bày mạch lạc, giải đáp phù hợp; tiếp thu góp ý.",
-        progress: "Gửi tài liệu, trình bày và hoàn thiện theo lịch của cụm.",
-        evidence: "Phân công; chương trình; báo cáo, slide; sản phẩm minh họa; biên bản, góp ý.",
-        note: "Nhiệm vụ được khuyến khích nên tiến độ sẽ tính luôn đạt.",
-        alert: "Nhiệm vụ khuyến khích — Tiến độ tính luôn đạt",
-        defaultSelected: false, unitHint: "VD: 1 báo cáo cấp cụm"
-      },
-      {
-        id: "gvbm-23", stt: 23, role: "gvbm", phase: "optional", subTag: "Ghi nhận nổi trội", hidden: false,
-        title: "Có sản phẩm, giải pháp đột phá, sáng tạo đem lại giá trị, hiệu quả thiết thực cho tổ chức, đơn vị",
-        groupLabel: "Theo nhiệm vụ tạo ra sản phẩm cụ thể, không mặc định nhóm 3 hoặc 4",
-        points: 0, pointsDisplay: "Theo nhóm xác nhận", flexiblePoints: true,
-        product: "Sản phẩm, giải pháp đã áp dụng; báo cáo hiệu quả và đóng góp trực tiếp của cá nhân.",
-        quality: "Chỉ rõ vấn đề, điểm mới và cải tiến; có kết quả thực tế so với hiện trạng hoặc mục tiêu. Hiệu quả, phạm vi tác động và đóng góp cá nhân được kiểm chứng, xác nhận.",
-        progress: "Hoàn thành sản phẩm và đánh giá kết quả theo nhiệm vụ được giao.",
-        evidence: "Sản phẩm; mô tả giải pháp; dữ liệu đối chiếu; xác nhận áp dụng, hiệu quả; báo cáo đóng góp.",
-        note: "Nếu sản phẩm đã tính ở nhiệm vụ khác, chỉ ghi nhận ở phần kết quả nổi trội, không tạo thêm dòng điểm.",
-        alert: "Căn cứ quan trọng khi xét Hoàn thành xuất sắc",
-        defaultSelected: false, unitHint: "VD: Mô tả sản phẩm nổi trội"
-      },
-      {
-        id: "gvbm-24", stt: 24, role: "gvbm", phase: "optional", subTag: "Ghi nhận nổi trội", hidden: false,
-        title: "Có tinh thần tiên phong trong việc thực hiện những nhiệm vụ mới",
-        groupLabel: "Theo nhiệm vụ mới cụ thể được giao (không chấm riêng biểu hiện tinh thần)",
-        points: 0, pointsDisplay: "Theo nhóm xác nhận", flexiblePoints: true,
-        product: "Nhiệm vụ mới được chủ động nhận hoặc đề xuất và chấp thuận; sản phẩm, kết quả triển khai.",
-        quality: "Chủ động tìm hiểu, đề xuất cách làm, phối hợp giải quyết khó khăn; sản phẩm đáp ứng yêu cầu, có tổng kết và điều chỉnh. Tinh thần tiên phong thể hiện bằng hành động, kết quả cụ thể.",
-        progress: "Hoàn thành theo mốc giao việc; báo cáo vướng mắc và tiến trình xử lý.",
-        evidence: "Đề xuất hoặc phân công; kế hoạch; sản phẩm; nhật ký xử lý; nhận xét của người phụ trách.",
-        note: "Dùng để ghi nhận đóng góp nổi trội nếu nhiệm vụ đã được chấm ở dòng khác.",
-        alert: "", defaultSelected: false, unitHint: "VD: Nhiệm vụ mới chủ động nhận"
-      },
-
-      // ---------------- GIÁO VIÊN CHỦ NHIỆM: NHIỆM VỤ CƠ BẢN ĐẦU QUÝ (TRANG 17–20) ----------------
-      {
-        id: "gvcn-1", stt: 1, role: "gvcn", phase: "core", hidden: false,
-        title: "Lập kế hoạch chủ nhiệm theo tháng, học kỳ, năm học",
-        groupLabel: "Nhóm 1: Nhiệm vụ thường xuyên, theo kế hoạch giáo dục của trường",
-        points: 100, pointsDisplay: "100",
-        product: "Kế hoạch chủ nhiệm năm học, học kỳ, tháng; nội dung điều chỉnh, bổ sung khi cần.",
-        quality: "Bám kế hoạch nhà trường và tình hình lớp; xác định rõ mục tiêu, công việc, biện pháp, người phối hợp, thời gian và kết quả dự kiến. Có nội dung hỗ trợ học sinh; các kế hoạch thống nhất, khả thi.",
-        progress: "Hoàn thành, trình duyệt theo lịch của trường trước khi triển khai; cập nhật khi có thay đổi.",
-        evidence: "Kế hoạch chủ nhiệm; bản được duyệt hoặc xác nhận; thông tin khảo sát lớp; nội dung điều chỉnh.",
-        note: "Chỉ tính kế hoạch đến hạn trong kỳ đánh giá; không tính nhiều bản sao của cùng một kế hoạch.",
-        alert: "Trình duyệt trước khi triển khai",
-        defaultSelected: true, unitHint: "VD: Kế hoạch tháng/quý"
-      },
-      {
-        id: "gvcn-2", stt: 2, role: "gvcn", phase: "core", hidden: false,
-        title: "Cập nhật các hồ sơ trong sổ chủ nhiệm trên hệ thống vnEdu theo định kỳ",
-        groupLabel: "Nhóm 1: Công việc định kỳ, biểu mẫu và nội dung xác định",
-        points: 100, pointsDisplay: "100",
-        product: "Các mục hồ sơ, nội dung sổ chủ nhiệm điện tử được cập nhật theo kỳ.",
-        quality: "Cập nhật đầy đủ nội dung thuộc trách nhiệm; phản ánh trung thực hoạt động lớp, thống nhất với hồ sơ liên quan. Ghi rõ kết quả, vấn đề cần theo dõi và biện pháp xử lý theo yêu cầu của biểu mẫu; lưu đúng lớp, đúng kỳ.",
-        progress: "Cập nhật theo lịch nhà trường; rà soát, bổ sung trước hạn kiểm tra hoặc chốt hồ sơ.",
-        evidence: "Sổ chủ nhiệm điện tử; bản xuất hoặc ảnh chụp nội dung; lịch sử cập nhật nếu có; kết quả kiểm tra hồ sơ.",
-        note: "Chỉ tính những nội dung chưa được chấm riêng ở nhiệm vụ 3, 4, 5.",
-        alert: "", defaultSelected: true, unitHint: "VD: Định kỳ hàng tháng"
-      },
-      {
-        id: "gvcn-3", stt: 3, role: "gvcn", phase: "core", hidden: false,
-        title: "Cập nhật hồ sơ học sinh lên hệ thống vnEdu",
-        groupLabel: "Nhóm 1: Nghiệp vụ thường xuyên, quy trình rõ",
-        points: 100, pointsDisplay: "100",
-        product: "Hồ sơ điện tử học sinh được nhập mới, bổ sung hoặc điều chỉnh; danh sách đã rà soát.",
-        quality: "Thông tin đầy đủ theo yêu cầu, chính xác và khớp tài liệu làm căn cứ; đúng học sinh, lớp và tình trạng học tập; không trùng, không bỏ sót. Điều chỉnh có căn cứ; bảo mật dữ liệu và tài khoản.",
-        progress: "Hoàn thành theo đợt cập nhật hoặc hạn được giao; xử lý sai lệch sau khi xác minh thông tin.",
-        evidence: "Hồ sơ điện tử; danh sách đối soát; tài liệu làm căn cứ; lịch sử chỉnh sửa hoặc xác nhận rà soát.",
-        note: "Phân biệt phần việc của giáo viên chủ nhiệm với phần việc do giáo vụ thực hiện.",
-        alert: "", defaultSelected: true, unitHint: "VD: Rà soát sĩ số lớp CN"
-      },
-      {
-        id: "gvcn-4", stt: 4, role: "gvcn", phase: "core", hidden: false,
-        title: "Nhập điểm danh vắng của học sinh lên vnEdu theo tháng",
-        groupLabel: "Nhóm 1: Nghiệp vụ định kỳ, căn cứ dữ liệu chuyên cần",
-        points: 100, pointsDisplay: "100",
-        product: "Dữ liệu nghỉ học và bảng tổng hợp chuyên cần từng tháng được cập nhật, đối soát.",
-        quality: "Đúng học sinh, ngày hoặc buổi nghỉ; phân biệt có phép, không phép theo thông tin đã xác minh. Số liệu khớp sổ đầu bài, bảng điểm danh; không nhập trùng, thiếu; tổng hợp chính xác.",
-        progress: "Hoàn thành theo lịch cập nhật, chốt tháng của trường; điều chỉnh sai lệch có căn cứ trước khi tổng hợp kỳ.",
-        evidence: "Dữ liệu điểm danh; sổ đầu bài hoặc bảng điểm danh; thông tin xin phép; bảng tổng hợp, đối soát.",
-        note: "Thống nhất đơn vị tính ngày hoặc buổi theo cách quản lý của trường.",
-        alert: "Chốt chuyên cần hàng tháng trên vnEdu",
-        defaultSelected: true, unitHint: "VD: 3 tháng/quý"
-      },
-      {
-        id: "gvcn-5", stt: 5, role: "gvcn", phase: "core", subTag: "Theo học kỳ", hidden: false,
-        title: "Nhập kết quả rèn luyện của học sinh lên hệ thống vnEdu theo học kỳ sau khi đã thống nhất xếp loại",
-        groupLabel: "Nhóm 1: Nghiệp vụ theo kỳ, thực hiện trên kết quả đã được xác nhận",
-        points: 100, pointsDisplay: "100",
-        product: "Bảng kết quả rèn luyện học kỳ được nhập và kiểm tra trên hệ thống.",
-        quality: "Nhập đầy đủ học sinh thuộc diện đánh giá; đúng kết quả đã thống nhất, phê duyệt theo quy trình của trường. Dữ liệu khớp hồ sơ, đúng lớp và học kỳ; không tự ý thay đổi. Điều chỉnh có căn cứ và được kiểm tra lại.",
-        progress: "Cập nhật sau khi kết quả được xác nhận và trước hạn chốt dữ liệu học kỳ.",
-        evidence: "Bảng kết quả rèn luyện; biên bản hoặc hồ sơ thống nhất kết quả; dữ liệu xuất từ hệ thống; hồ sơ điều chỉnh nếu có.",
-        note: "Nếu chưa đến kỳ hoặc chưa được giao thì không đưa vào khối lượng phải hoàn thành.",
-        alert: "Chỉ đưa vào kế hoạch khi quý trùng thời điểm chốt học kỳ",
-        defaultSelected: false, unitHint: "VD: Chỉ chọn nếu quý có chốt HK"
-      },
-      {
-        id: "gvcn-6", stt: 6, role: "gvcn", phase: "core", hidden: false,
-        title: "Phối hợp với gia đình và giáo viên bộ môn",
-        groupLabel: "Nhóm 1: Nhiệm vụ phối hợp thường xuyên trong quản lý, giáo dục học sinh",
-        points: 100, pointsDisplay: "100",
-        product: "Cuộc họp, lượt trao đổi hoặc hồ sơ phối hợp giải quyết vấn đề cụ thể; nội dung thống nhất và kết quả theo dõi.",
-        quality: "Trao đổi dựa trên thông tin đã kiểm chứng; xác định rõ vấn đề, biện pháp hỗ trợ, trách nhiệm các bên và nội dung theo dõi. Giao tiếp tôn trọng, bảo mật; có phản hồi về kết quả phối hợp.",
-        progress: "Thực hiện theo lịch họp, lịch hẹn hoặc yêu cầu của từng trường hợp; báo ngay người có trách nhiệm khi phát hiện vấn đề cần xử lý khẩn.",
-        evidence: "Biên bản họp; nhật ký liên hệ; nội dung trao đổi liên quan; kế hoạch phối hợp; ghi nhận kết quả hỗ trợ.",
-        note: "Thống nhất đơn vị tính theo cuộc, lượt hoặc vụ việc; không đếm từng tin nhắn thành nhiệm vụ riêng.",
-        alert: "", defaultSelected: true, unitHint: "VD: Họp CMHS + các vụ việc"
-      },
-      {
-        id: "gvcn-7", stt: 7, role: "gvcn", phase: "core", hidden: false,
-        title: "Tổ chức sinh hoạt lớp và hoạt động được giao",
-        groupLabel: "Nhóm 1: Hoạt động giáo dục thường xuyên, theo kế hoạch",
-        points: 100, pointsDisplay: "100",
-        product: "Buổi sinh hoạt lớp; hoạt động giáo dục theo phân công; sản phẩm hoặc kết quả tham gia của học sinh.",
-        quality: "Mục tiêu, nội dung phù hợp đặc điểm lớp; học sinh được trao đổi, tự đánh giá, đề xuất và thực hiện nhiệm vụ. Tổ chức an toàn, tôn trọng; có kết luận, sản phẩm hoặc kết quả đánh giá, xác định công việc tiếp theo.",
-        progress: "Chuẩn bị trước hoạt động; thực hiện đúng lịch, thời lượng; hoàn thiện ghi nhận kết quả theo yêu cầu.",
-        evidence: "Nội dung hoặc kế hoạch sinh hoạt; sổ đầu bài; biên bản, ghi chép kết quả; sản phẩm học sinh; phản hồi, hình ảnh phù hợp.",
-        note: "Nếu tiết sinh hoạt đã tính trong nhiệm vụ giờ dạy thì không tính lại cùng tiết ở dòng này.",
-        alert: "Tránh tính trùng với giờ dạy ở GVBM STT 1",
-        defaultSelected: true, unitHint: "VD: 1 tiết/tuần + hoạt động"
-      },
-      {
-        id: "gvcn-8", stt: 8, role: "gvcn", phase: "core", hidden: false,
-        title: "Theo dõi chuyên cần, nền nếp và hỗ trợ học sinh",
-        groupLabel: "Nhóm 1: Nhiệm vụ theo dõi, giáo dục và hỗ trợ thường xuyên",
-        points: 100, pointsDisplay: "100",
-        product: "Sổ hoặc bảng theo dõi; hồ sơ hỗ trợ học sinh; ghi nhận tiến bộ, khó khăn và biện pháp tiếp theo.",
-        quality: "Phản ánh trung thực tình hình; phát hiện, xác minh nguyên nhân của vấn đề. Biện pháp phù hợp từng học sinh, có phối hợp và theo dõi kết quả; ghi nhận cả tiến bộ và khó khăn còn tồn tại. Báo cáo trường hợp vượt thẩm quyền.",
-        progress: "Theo dõi theo lịch công tác; hỗ trợ khi phát hiện nhu cầu; kiểm tra kết quả theo mốc đã thống nhất.",
-        evidence: "Sổ theo dõi; dữ liệu chuyên cần; nhật ký hỗ trợ; biên bản phối hợp; ghi nhận tiến bộ; báo cáo đề nghị hỗ trợ.",
-        note: "Đánh giá công việc theo dõi, hỗ trợ; không tính lại thao tác nhập điểm danh ở nhiệm vụ 4 hoặc cùng hồ sơ phối hợp đã chấm ở nhiệm vụ 6.",
-        alert: "", defaultSelected: true, unitHint: "VD: Theo dõi hằng tuần"
-      }
-    ];
+  {
+    "id": "gvbm-1",
+    "stt": 1,
+    "role": "gvbm",
+    "phase": "core",
+    "hidden": false,
+    "qtyAuthority": "tt",
+    "adminFixedQty": 1,
+    "noExceed": false,
+    "title": "Thực hiện giờ dạy được phân công",
+    "groupLabel": "Nhóm 1: Thường xuyên, theo kế hoạch chuyên môn",
+    "points": 100,
+    "pointsDisplay": "100",
+    "product": "Tiết dạy theo phân công và thời khóa biểu được thực hiện.",
+    "quality": "Đúng nội dung, đối tượng và thời khóa biểu; nội dung chính xác, bám yêu cầu cần đạt; tổ chức hoạt động phù hợp học sinh, có kiểm tra mức độ tiếp thu và điều chỉnh hỗ trợ. Ký sổ đầu bài đầy đủ.",
+    "progress": "Dạy đúng lịch, đủ thời lượng. (Vào dạy muộn trên 5 phút được coi là chậm tiến độ, trên 15 phút được coi là không thực hiện).",
+    "evidence": "Phân công chuyên môn; thời khóa biểu; sổ đầu bài.",
+    "note": "",
+    "alert": "Muộn > 5 phút = chậm tiến độ; > 15 phút = không thực hiện",
+    "exceedCriteria": "Tổ chức dạy học tích cực (STEM/STEAM, dự án, mô phỏng trực quan/tương tác 2D–3D, trò chơi hóa) tạo sản phẩm học tập thực tế; hoặc tiết dự giờ/thao giảng xếp loại Xuất sắc, có minh chứng tỷ lệ học sinh tiến bộ rõ rệt.",
+    "defaultSelected": true,
+    "unitHint": "VD: 17 tiết/tuần"
+  },
+  {
+    "id": "gvbm-2",
+    "stt": 2,
+    "role": "gvbm",
+    "phase": "core",
+    "hidden": false,
+    "qtyAuthority": "tt",
+    "adminFixedQty": 1,
+    "noExceed": false,
+    "title": "Xây dựng kế hoạch bài dạy",
+    "groupLabel": "Nhóm 1: Thường xuyên, theo chương trình và kế hoạch giáo dục",
+    "points": 100,
+    "pointsDisplay": "100",
+    "product": "Kế hoạch bài dạy của bài học hoặc chủ đề.",
+    "quality": "Bám sát yêu cầu cần đạt trong KHGD của tổ chuyên môn đã phê duyệt; nội dung chính xác; hoạt động học, sản phẩm và cách đánh giá thống nhất; phù hợp thời lượng, có hỗ trợ và phân hóa học sinh.",
+    "progress": "Hoàn thành và tải lên hệ thống vnedu.vn trước ngày thứ 2 của tuần mới.",
+    "evidence": "Kế hoạch bài dạy; học liệu kèm theo; nhận xét chuyên môn.",
+    "note": "Không tính lại kế hoạch bồi dưỡng HSG, phụ đạo đã ghi riêng ở nhóm chuyên sâu.",
+    "alert": "Tải lên vnedu.vn trước ngày Thứ 2 tuần mới",
+    "exceedCriteria": "Tích hợp học liệu số tương tác, bài tập phân hóa theo năng lực hoặc ứng dụng AI có kiểm chứng để thiết kế tình huống thực tiễn; trình duyệt 0 lỗi và được tổ chuyên môn chọn làm giáo án mẫu dùng chung.",
+    "defaultSelected": true,
+    "unitHint": "VD: Theo tuần / bài học"
+  },
+  {
+    "id": "gvbm-3",
+    "stt": 3,
+    "role": "gvbm",
+    "phase": "core",
+    "hidden": false,
+    "subTag": "Gom STT 3+4",
+    "qtyAuthority": "tt",
+    "adminFixedQty": 1,
+    "noExceed": false,
+    "title": "Xây dựng ma trận, bản đặc tả và đề kiểm tra định kỳ",
+    "groupLabel": "Nhóm 1: Nghiệp vụ định kỳ, có quy trình biên soạn và thẩm định",
+    "points": 100,
+    "pointsDisplay": "100",
+    "product": "Bộ ma trận, bản đặc tả, đề kiểm tra, đáp án và hướng dẫn chấm thống nhất.",
+    "quality": "Xác định đúng phạm vi kiến thức, mức độ, dạng câu hỏi, số câu và điểm số khớp giữa ma trận – bản đặc tả – đề – đáp án. Câu hỏi chính xác, diễn đạt rõ, hình vẽ/ký hiệu đúng; mã đề tương đương; đã giải thử, rà soát và bàn giao bảo mật.",
+    "progress": "Hoàn thành, trình duyệt và bàn giao đúng lịch được giao; bảo đảm bảo mật. (Môn không KT tập trung thực hiện đúng PPCT).",
+    "evidence": "Ma trận; bản đặc tả; bộ đề; đáp án và hướng dẫn chấm.",
+    "note": "Gom trọn bộ Ma trận + Bản đặc tả + Đề kiểm tra định kỳ thành 1 sản phẩm thống nhất.",
+    "alert": "Bàn giao đúng lịch & bảo mật quy trình",
+    "exceedCriteria": "Biên soạn bộ đề mới 100% gắn bối cảnh thực tiễn/liên môn theo định dạng đánh giá mới (Đúng–Sai, Trả lời ngắn), 0 lỗi phản biện/kỹ thuật, kèm hướng dẫn chấm đa cách giải hoặc báo cáo phân tích lỗi sai sau chấm để điều chỉnh dạy học.",
+    "defaultSelected": true,
+    "unitHint": "VD: 1–2 bộ đề/quý"
+  },
+  {
+    "id": "gvbm-4",
+    "stt": 4,
+    "role": "gvbm",
+    "phase": "core",
+    "hidden": false,
+    "qtyAuthority": "tt",
+    "adminFixedQty": 1,
+    "noExceed": true,
+    "title": "Coi kiểm tra định kỳ",
+    "groupLabel": "Nhóm 1: Thực hiện theo phân công và quy trình",
+    "points": 100,
+    "pointsDisplay": "100",
+    "product": "Ca coi kiểm tra; bài làm và hồ sơ phòng kiểm tra được bàn giao.",
+    "quality": "Giám sát nghiêm túc, công bằng; không làm việc riêng hoặc hỗ trợ học sinh trái quy định; kiểm đếm bài, hoàn thiện hồ sơ, ký xác nhận và bàn giao đầy đủ, không thất lạc hoặc nhầm lẫn do lỗi chủ quan.",
+    "progress": "Có mặt, phát đề, tính giờ, thu bài và bàn giao đúng lịch.",
+    "evidence": "Phân công; danh sách phòng; hồ sơ coi kiểm tra; biên bản sự việc (nếu có); xác nhận giao nhận.",
+    "note": "Tính theo ca được giao.",
+    "alert": "",
+    "exceedCriteria": "Nhiệm vụ chấp hành quy trình chuẩn — chỉ đánh giá Đạt / Không đạt (không xét vượt mức để tránh lạm phát tỷ lệ 30%).",
+    "defaultSelected": true,
+    "unitHint": "VD: Theo số ca phân công"
+  },
+  {
+    "id": "gvbm-5",
+    "stt": 5,
+    "role": "gvbm",
+    "phase": "core",
+    "hidden": false,
+    "qtyAuthority": "admin",
+    "adminFixedQty": 2,
+    "noExceed": true,
+    "title": "Tham gia các cuộc họp",
+    "groupLabel": "Nhóm 1: Nhiệm vụ thường xuyên",
+    "points": 100,
+    "pointsDisplay": "100",
+    "product": "Buổi họp tham gia; tài liệu, báo cáo hoặc ý kiến theo phân công.",
+    "quality": "Chuẩn bị nội dung khi được yêu cầu; nắm kết luận, nhiệm vụ liên quan. Báo cáo, ý kiến đúng trọng tâm, có căn cứ.",
+    "progress": "Tham dự đúng lịch, đủ thời gian; nộp tài liệu theo hạn. (Vào họp muộn sau 5 phút = chậm tiến độ; trên 15 phút = không tham gia).",
+    "evidence": "Biên bản; tài liệu được giao chuẩn bị.",
+    "note": "",
+    "alert": "Muộn > 5 phút = chậm tiến độ; > 15 phút = không tham gia",
+    "exceedCriteria": "Nhiệm vụ thường xuyên — chỉ đánh giá Đạt / Không đạt (chỉ ghi nhận nổi trội nếu có đề xuất cải tiến quan trọng được đưa vào nghị quyết/biên bản).",
+    "defaultSelected": true,
+    "unitHint": "VD: Theo lịch họp quý"
+  },
+  {
+    "id": "gvbm-6",
+    "stt": 6,
+    "role": "gvbm",
+    "phase": "core",
+    "hidden": false,
+    "subTag": "Gom STT 11+12",
+    "qtyAuthority": "admin",
+    "adminFixedQty": 4,
+    "noExceed": false,
+    "title": "Tham gia sinh hoạt chuyên môn và bồi dưỡng chuyên môn",
+    "groupLabel": "Nhóm 1: Hoạt động chuyên môn & bồi dưỡng thường xuyên theo kế hoạch",
+    "points": 100,
+    "pointsDisplay": "100",
+    "product": "Buổi sinh hoạt chuyên môn, khóa/đợt bồi dưỡng tham gia; nội dung chuẩn bị, góp ý, bài thu hoạch hoặc sản phẩm vận dụng.",
+    "quality": "Chuẩn bị nội dung theo phân công; trao đổi chính xác về chuyên môn, tập trung vào việc học của học sinh; hoàn thành yêu cầu học tập/đánh giá của đợt bồi dưỡng và xác định nội dung vận dụng vào giảng dạy.",
+    "progress": "Tham gia đúng lịch; hoàn thành phần việc, bài tập và nộp sản phẩm đúng hạn chương trình.",
+    "evidence": "Biên bản SHCM; phiếu phân tích/góp ý; quyết định/xác nhận bồi dưỡng; bài thu hoạch hoặc sản phẩm chuyên môn.",
+    "note": "Không tính lại sản phẩm đã chấm ở nhiệm vụ chuyên đề/báo cáo riêng; không bắt buộc chứng chỉ nếu chương trình không cấp.",
+    "alert": "",
+    "exceedCriteria": "Trực tiếp chủ trì/trình bày nghiên cứu bài học, chia sẻ công cụ số/AI hoặc chuyển hóa kiến thức bồi dưỡng thành bài dạy minh họa/tài liệu tập huấn lại được đồng nghiệp vận dụng thực tế.",
+    "defaultSelected": true,
+    "unitHint": "VD: 4 buổi SHCM + đợt bồi dưỡng"
+  },
+  {
+    "id": "gvbm-7",
+    "stt": 7,
+    "role": "gvbm",
+    "phase": "core",
+    "hidden": false,
+    "subTag": "Gom STT 13+14",
+    "qtyAuthority": "admin",
+    "adminFixedQty": 1,
+    "noExceed": false,
+    "title": "Hoàn thiện hồ sơ, báo cáo chuyên môn và cập nhật điểm lên hệ thống vnEdu",
+    "groupLabel": "Nhóm 1: Công việc thường xuyên, theo biểu mẫu và quy trình vnEdu",
+    "points": 100,
+    "pointsDisplay": "100",
+    "product": "Bộ hồ sơ chuyên môn, báo cáo định kỳ và dữ liệu điểm được nhập, kiểm tra, đối soát trên hệ thống vnEdu.",
+    "quality": "Hồ sơ đủ thành phần, thống nhất, dễ tra cứu; báo cáo trung thực, có căn cứ; dữ liệu điểm đúng học sinh, lớp, môn, cột điểm và khớp bài chấm gốc; điều chỉnh có căn cứ, bảo mật tài khoản.",
+    "progress": "Cập nhật, rà soát và nộp/chốt điểm đúng hạn theo kế hoạch của nhà trường.",
+    "evidence": "Hồ sơ, báo cáo; bảng điểm gốc; dữ liệu xuất vnEdu; bảng đối soát; xác nhận tiếp nhận/phiếu kiểm tra.",
+    "note": "Chỉ tính nội dung chưa được chấm riêng ở dòng khác; phân biệt nhiệm vụ nhập điểm với chấm bài.",
+    "alert": "Rà soát trước hạn chốt điểm & nộp hồ sơ",
+    "exceedCriteria": "Hồ sơ số hóa khoa học, nhập điểm 0 sai sót, đồng thời khai thác dữ liệu phân tích phổ điểm/biểu đồ hoặc cảnh báo sớm học sinh sa sút gửi GVCN và gia đình kịp thời hỗ trợ.",
+    "defaultSelected": true,
+    "unitHint": "VD: 1 bộ hồ sơ + chốt điểm quý"
+  },
+  {
+    "id": "gvbm-8",
+    "stt": 8,
+    "role": "gvbm",
+    "phase": "optional",
+    "hidden": false,
+    "subTag": "Theo phân công • Gom 5+6",
+    "qtyAuthority": "tt",
+    "adminFixedQty": 1,
+    "noExceed": false,
+    "title": "Xây dựng chuyên đề và dạy bồi dưỡng học sinh giỏi",
+    "groupLabel": "Nhóm 2: Yêu cầu chuyên sâu, tổng hợp và phân hóa cao hơn bài dạy thường xuyên",
+    "points": 150,
+    "pointsDisplay": "150",
+    "product": "Chuyên đề bồi dưỡng, hệ thống bài tập–lời giải; các tiết/buổi bồi dưỡng thực hiện và kết quả đánh giá đội tuyển.",
+    "quality": "Chuyên đề chính xác, hệ thống, phân hóa độ khó rõ ràng; giảng dạy đúng nội dung, thời lượng, làm rõ phương pháp và sai lầm thường gặp; học sinh được trực tiếp giải quyết bài toán, bảo vệ cách giải và có theo dõi tự luyện.",
+    "progress": "Chuyên đề tải lên vnedu.vn trước Thứ 2 tuần mới; dạy đúng lịch, đủ thời lượng (muộn > 5 phút = chậm tiến độ; > 15 phút = không thực hiện).",
+    "evidence": "Chuyên đề, bài tập, lời giải; lịch bồi dưỡng; sổ đầu bài; kết quả đánh giá đội tuyển.",
+    "note": "Gom trọn gói xây dựng chuyên đề + trực tiếp giảng dạy đội tuyển HSG.",
+    "alert": "Tải chuyên đề trước Thứ 2; dạy đúng lịch",
+    "exceedCriteria": "Áp dụng huấn luyện cá thể hóa kèm tài liệu tự học số/ngân hàng bài tập mở rộng tái sử dụng cho nhiều khóa, có nhật ký tiến bộ rõ rệt hoặc giúp học sinh đạt giải/vượt mục tiêu.",
+    "defaultSelected": false,
+    "unitHint": "VD: Số chuyên đề / buổi bồi dưỡng"
+  },
+  {
+    "id": "gvbm-9",
+    "stt": 9,
+    "role": "gvbm",
+    "phase": "optional",
+    "hidden": false,
+    "subTag": "Theo phân công • Gom 7+8",
+    "qtyAuthority": "tt",
+    "adminFixedQty": 1,
+    "noExceed": false,
+    "title": "Xây dựng chuyên đề và dạy phụ đạo học sinh chưa đạt",
+    "groupLabel": "Nhóm 1: Nhiệm vụ chuyên môn hỗ trợ học sinh theo phân công",
+    "points": 100,
+    "pointsDisplay": "100",
+    "product": "Chuyên đề phụ đạo, bài tập vừa sức, công cụ kiểm tra ngắn; các tiết/buổi phụ đạo và ghi nhận mức tiến bộ của học sinh.",
+    "quality": "Xuất phát từ lỗ hổng kiến thức thực tế của học sinh; hướng dẫn chia bước rõ, vừa sức; học sinh được thực hành, sửa lỗi, nhận phản hồi và kiểm tra mức đạt mục tiêu sau mỗi buổi.",
+    "progress": "Chuyên đề tải lên vnedu.vn trước Thứ 2 tuần mới; dạy đúng lịch, đủ thời lượng (muộn > 5 phút = chậm tiến độ; > 15 phút = không thực hiện).",
+    "evidence": "Chuyên đề phụ đạo; danh sách tham gia; sổ theo dõi tiến bộ.",
+    "note": "Gom trọn gói xây dựng chuyên đề + trực tiếp dạy phụ đạo học sinh chưa đạt.",
+    "alert": "Tải chuyên đề trước Thứ 2; dạy đúng lịch",
+    "exceedCriteria": "Thiết kế phiếu tự luyện trực quan (kèm mã QR/video hướng dẫn ngắn) và có số liệu kiểm chứng tỷ lệ học sinh chuyển từ Chưa đạt lên Đạt rõ rệt qua bài kiểm tra đối chứng trước–sau.",
+    "defaultSelected": false,
+    "unitHint": "VD: Số buổi phụ đạo"
+  },
+  {
+    "id": "gvbm-10",
+    "stt": 10,
+    "role": "gvbm",
+    "phase": "optional",
+    "hidden": false,
+    "subTag": "Theo phân công • Gom 15+17+18",
+    "qtyAuthority": "tt",
+    "adminFixedQty": 1,
+    "noExceed": false,
+    "title": "Xây dựng học liệu số, công cụ kiểm tra đánh giá và sản phẩm chuyên môn",
+    "groupLabel": "Nhóm 1: Sản phẩm chuyên môn, học liệu và công cụ đánh giá theo yêu cầu",
+    "points": 100,
+    "pointsDisplay": "100",
+    "product": "Bộ học liệu/học liệu số (phiếu học tập, slide, video, web app), bảng kiểm/rubric đánh giá, mô hình hoặc đồ dùng dạy học được giao.",
+    "quality": "Chính xác, bám mục tiêu, phù hợp đối tượng; tiêu chí/thang điểm nhất quán; tệp/liên kết hoạt động tốt, an toàn, ghi nguồn rõ ràng và bảo vệ dữ liệu cá nhân; được kiểm tra/rà soát trước khi sử dụng hoặc bàn giao.",
+    "progress": "Hoàn thành, kiểm tra/thử nghiệm và bàn giao trước thời điểm sử dụng theo kế hoạch.",
+    "evidence": "Học liệu, đường dẫn/tệp, công cụ đánh giá, mô hình/bản mô tả; phiếu góp ý; xác nhận sử dụng hoặc nghiệm thu.",
+    "note": "Ghi tên sản phẩm cụ thể; không tính lại ma trận, đặc tả, đề kiểm tra đã chấm ở STT 3.",
+    "alert": "",
+    "exceedCriteria": "Sản phẩm số tương tác (web app, mô phỏng, flashcard, rubric tự chấm) hoặc mô hình STEM sáng tạo chạy mượt trên thiết bị, có thống kê lượt học sinh/đồng nghiệp khai thác thực tế.",
+    "defaultSelected": false,
+    "unitHint": "VD: Ghi tên học liệu / sản phẩm"
+  },
+  {
+    "id": "gvbm-11",
+    "stt": 11,
+    "role": "gvbm",
+    "phase": "optional",
+    "hidden": false,
+    "subTag": "Theo phân công",
+    "qtyAuthority": "tt",
+    "adminFixedQty": 1,
+    "noExceed": false,
+    "title": "Xây dựng ngân hàng câu hỏi theo chủ đề",
+    "groupLabel": "Nhóm 2: Sản phẩm tổng hợp, cần phân loại và kiểm định nhiều câu hỏi",
+    "points": 150,
+    "pointsDisplay": "150",
+    "product": "Ngân hàng câu hỏi được phân loại; đáp án, lời giải và hướng dẫn chấm.",
+    "quality": "Bám yêu cầu cần đạt; phân loại rõ chủ đề, mức độ, dạng câu hỏi; chính xác, không mơ hồ, hạn chế trùng lặp; đáp án và hướng dẫn chấm thống nhất, có mã quản lý dễ tra cứu.",
+    "progress": "Hoàn thành biên soạn, rà soát, chỉnh sửa và bàn giao theo mốc được giao.",
+    "evidence": "Ngân hàng câu hỏi; bảng phân loại; đáp án; phiếu phản biện, thẩm định; xác nhận bàn giao.",
+    "note": "Nếu chỉ đóng góp ít câu theo mẫu thông thường, xem xét Nhóm 1 (100đ).",
+    "alert": "",
+    "exceedCriteria": "Chuẩn hóa định dạng thi mới (trắc nghiệm, Đúng–Sai, Trả lời ngắn), gắn thẻ chủ đề/mức độ khoa học kèm lời giải chi tiết và đưa vào khai thác trực tiếp trên nền tảng ôn luyện trực tuyến.",
+    "defaultSelected": false,
+    "unitHint": "VD: Số chủ đề / câu hỏi"
+  },
+  {
+    "id": "gvbm-12",
+    "stt": 12,
+    "role": "gvbm",
+    "phase": "optional",
+    "hidden": false,
+    "subTag": "Khuyến khích • Gom 19+22",
+    "qtyAuthority": "admin",
+    "adminFixedQty": 1,
+    "noExceed": false,
+    "title": "Giải pháp nâng cao chất lượng mũi nhọn (HSG, KHKT) và báo cáo chuyên đề cụm chuyên môn",
+    "groupLabel": "Nhóm 2: Nhiệm vụ trọng tâm/liên trường, cần tổng hợp và phối hợp",
+    "points": 150,
+    "pointsDisplay": "150",
+    "product": "Đề xuất giải pháp/kế hoạch mũi nhọn, NCKH, ôn thi; báo cáo chuyên đề cấp cụm, slide, sản phẩm minh họa và kết quả thử nghiệm.",
+    "quality": "Xuất phát từ thực trạng; mục tiêu, biện pháp, tiêu chí đánh giá rõ và khả thi; minh họa có căn cứ; với KHKT làm rõ phương pháp, dữ liệu và đóng góp thực chất của học sinh; trình bày mạch lạc và tiếp thu góp ý.",
+    "progress": "Trình giải pháp, gửi tài liệu và báo cáo theo kế hoạch/lịch cụm. (Nhiệm vụ khuyến khích — tiến độ tính luôn đạt).",
+    "evidence": "Bản giải pháp/báo cáo chuyên đề; slide, sản phẩm minh họa; biên bản, góp ý, phê duyệt hoặc minh chứng thử nghiệm.",
+    "note": "Nhiệm vụ được khuyến khích nên tiến độ sẽ tính luôn đạt.",
+    "alert": "Nhiệm vụ khuyến khích — Tiến độ tính luôn đạt",
+    "exceedCriteria": "Giải pháp hoặc chuyên đề cấp cụm được triển khai thực tế, tạo chuyển biến rõ rệt (số liệu đối chứng/giải thưởng) và được hội đồng cụm/trường bạn đánh giá cao, nhân rộng.",
+    "defaultSelected": false,
+    "unitHint": "VD: 1 giải pháp / báo cáo cụm"
+  },
+  {
+    "id": "gvbm-13",
+    "stt": 13,
+    "role": "gvbm",
+    "phase": "optional",
+    "hidden": false,
+    "subTag": "Khuyến khích",
+    "qtyAuthority": "admin",
+    "adminFixedQty": 1,
+    "noExceed": false,
+    "title": "Chia sẻ kinh nghiệm ứng dụng AI và công nghệ số trong dạy học, KTĐG, hướng nghiệp và quản trị chuyên môn",
+    "groupLabel": "Nhóm 2: Nội dung mới, cần tổng hợp, thử nghiệm và hướng dẫn vận dụng",
+    "points": 150,
+    "pointsDisplay": "150",
+    "product": "Chuyên đề chia sẻ; tài liệu hướng dẫn; sản phẩm minh họa hoặc buổi thực hành.",
+    "quality": "Giải quyết nhu cầu thực tế; quy trình đủ rõ để tham khảo, thực hành; sản phẩm được kiểm chứng độ chính xác, nêu giới hạn cần con người kiểm tra, bảo đảm bảo mật và bản quyền.",
+    "progress": "Chuẩn bị, chia sẻ và bàn giao tài liệu theo kế hoạch. (Nhiệm vụ khuyến khích — tiến độ tính luôn đạt).",
+    "evidence": "Chuyên đề; tài liệu, sản phẩm mẫu; chương trình; biên bản; phản hồi người tham gia.",
+    "note": "Nhiệm vụ được khuyến khích nên tiến độ sẽ tính luôn đạt.",
+    "alert": "Nhiệm vụ khuyến khích — Tiến độ tính luôn đạt",
+    "exceedCriteria": "Sản phẩm/quy trình ứng dụng AI giải quyết đúng bài toán thực tế của tổ/trường, giúp tiết kiệm thời gian hoặc nâng cao hứng thú học tập và được nhiều đồng nghiệp áp dụng.",
+    "defaultSelected": false,
+    "unitHint": "VD: 1 chuyên đề ứng dụng AI"
+  },
+  {
+    "id": "gvbm-14",
+    "stt": 14,
+    "role": "gvbm",
+    "phase": "optional",
+    "hidden": false,
+    "subTag": "Nổi trội • Gom 21+23+24",
+    "qtyAuthority": "admin",
+    "adminFixedQty": 1,
+    "noExceed": false,
+    "title": "Tham gia các cuộc thi cấp trên, giải pháp đột phá sáng tạo và tiên phong nhiệm vụ mới",
+    "groupLabel": "Xác định theo nhiệm vụ cụ thể (Nhóm 1–4); không cộng trùng nếu đã chấm ở dòng khác",
+    "points": 150,
+    "pointsDisplay": "100 / 150 / 200 / 250",
+    "flexiblePoints": true,
+    "product": "Hồ sơ/sản phẩm dự thi và quyết định giải (nếu có); giải pháp đột phá đã áp dụng; kết quả chủ động triển khai nhiệm vụ mới và báo cáo đóng góp trực tiếp.",
+    "quality": "Sản phẩm đúng thể lệ, trung thực, chỉ rõ điểm mới và cải tiến; có kết quả thực tế đối chiếu với hiện trạng/mục tiêu; thể hiện tinh thần tiên phong bằng hành động và sản phẩm kiểm chứng được.",
+    "progress": "Đăng ký, nộp sản phẩm, dự thi hoặc hoàn thành nhiệm vụ mới đúng mốc được giao.",
+    "evidence": "Văn bản phân công/đề xuất; sản phẩm dự thi/giải pháp; dữ liệu đối chiếu hiệu quả; xác nhận tham gia/giấy chứng nhận giải.",
+    "note": "Giải thưởng hoặc sản phẩm đã chấm ở nhiệm vụ khác thì ghi nhận ở phần kết quả nổi trội, không cộng điểm ngoài thang.",
+    "alert": "Căn cứ trực tiếp khi xét Hoàn thành xuất sắc",
+    "exceedCriteria": "Đạt giải thưởng cấp trên công nhận, hoặc sản phẩm/giải pháp đột phá tạo chuyển biến đo lường được và nhân rộng thành quy trình mẫu cho đơn vị.",
+    "defaultSelected": false,
+    "unitHint": "VD: Tên cuộc thi / sản phẩm đột phá"
+  },
+  {
+    "id": "gvcn-1",
+    "stt": 1,
+    "role": "gvcn",
+    "phase": "core",
+    "hidden": false,
+    "qtyAuthority": "tt",
+    "adminFixedQty": 1,
+    "noExceed": false,
+    "title": "Lập kế hoạch chủ nhiệm theo tháng, học kỳ, năm học",
+    "groupLabel": "Nhóm 1: Nhiệm vụ thường xuyên, theo kế hoạch giáo dục của trường",
+    "points": 100,
+    "pointsDisplay": "100",
+    "product": "Kế hoạch chủ nhiệm năm học, học kỳ, tháng; nội dung điều chỉnh, bổ sung khi cần.",
+    "quality": "Bám kế hoạch nhà trường và tình hình lớp; xác định rõ mục tiêu, công việc, biện pháp, người phối hợp, thời gian và kết quả dự kiến; có nội dung hỗ trợ học sinh, thống nhất và khả thi.",
+    "progress": "Hoàn thành, trình duyệt theo lịch của trường trước khi triển khai; cập nhật khi có thay đổi.",
+    "evidence": "Kế hoạch chủ nhiệm; bản được duyệt/xác nhận; thông tin khảo sát lớp; nội dung điều chỉnh.",
+    "note": "Chỉ tính kế hoạch đến hạn trong kỳ đánh giá; không tính nhiều bản sao của cùng một kế hoạch.",
+    "alert": "Trình duyệt trước khi triển khai",
+    "exceedCriteria": "Kế hoạch chủ nhiệm tích hợp giáo dục kỹ năng số, an toàn không gian mạng, hướng nghiệp hoặc sức khỏe học đường sát đặc thù lớp, có chỉ số đánh giá cụ thể.",
+    "defaultSelected": true,
+    "unitHint": "VD: Kế hoạch tháng/quý"
+  },
+  {
+    "id": "gvcn-2",
+    "stt": 2,
+    "role": "gvcn",
+    "phase": "core",
+    "hidden": false,
+    "subTag": "Gom GVCN 2+3+4+5",
+    "qtyAuthority": "tt",
+    "adminFixedQty": 3,
+    "noExceed": false,
+    "title": "Cập nhật sổ chủ nhiệm, hồ sơ học sinh, điểm danh và kết quả rèn luyện trên hệ thống vnEdu",
+    "groupLabel": "Nhóm 1: Nghiệp vụ hồ sơ điện tử định kỳ trên vnEdu",
+    "points": 100,
+    "pointsDisplay": "100",
+    "product": "Sổ chủ nhiệm điện tử, hồ sơ học sinh, bảng tổng hợp chuyên cần hàng tháng và bảng kết quả rèn luyện (khi đến kỳ chốt học kỳ) được cập nhật, đối soát trên vnEdu.",
+    "quality": "Thông tin đầy đủ, chính xác, khớp sổ đầu bài, tài liệu gốc và biên bản thống nhất xếp loại; phân biệt rõ nghỉ có phép/không phép; không trùng, không bỏ sót; bảo mật dữ liệu và tài khoản.",
+    "progress": "Cập nhật, rà soát và chốt số liệu đúng lịch hàng tháng/đợt của nhà trường. (Kết quả rèn luyện chỉ nhập khi quý trùng thời điểm chốt học kỳ).",
+    "evidence": "Sổ chủ nhiệm điện tử; dữ liệu xuất vnEdu; sổ đầu bài/bảng điểm danh; bảng đối soát; biên bản xếp loại rèn luyện (nếu đến kỳ).",
+    "note": "Gom trọn các nghiệp vụ vnEdu của GVCN; phân biệt với phần việc của giáo vụ.",
+    "alert": "Chốt chuyên cần & sổ chủ nhiệm hàng tháng trên vnEdu",
+    "exceedCriteria": "Dữ liệu vnEdu chuẩn xác 0 sai sót, kết hợp bảng theo dõi số hóa giúp phát hiện sớm xu hướng chuyên cần–học tập–rèn luyện của từng học sinh trong lớp.",
+    "defaultSelected": true,
+    "unitHint": "VD: 3 tháng/quý"
+  },
+  {
+    "id": "gvcn-3",
+    "stt": 3,
+    "role": "gvcn",
+    "phase": "core",
+    "hidden": false,
+    "qtyAuthority": "tt",
+    "adminFixedQty": 12,
+    "noExceed": false,
+    "title": "Tổ chức sinh hoạt lớp và các hoạt động giáo dục được giao",
+    "groupLabel": "Nhóm 1: Hoạt động giáo dục thường xuyên, theo kế hoạch",
+    "points": 100,
+    "pointsDisplay": "100",
+    "product": "Buổi sinh hoạt lớp; hoạt động giáo dục theo phân công; sản phẩm hoặc kết quả tham gia của học sinh.",
+    "quality": "Mục tiêu, nội dung phù hợp đặc điểm lớp; học sinh được trao đổi, tự đánh giá, đề xuất và thực hiện nhiệm vụ; tổ chức an toàn, tôn trọng; có kết luận, sản phẩm hoặc kết quả đánh giá và việc tiếp theo.",
+    "progress": "Chuẩn bị trước hoạt động; thực hiện đúng lịch, thời lượng; hoàn thiện ghi nhận kết quả theo yêu cầu.",
+    "evidence": "Nội dung/kế hoạch sinh hoạt; sổ đầu bài; biên bản, ghi chép kết quả; sản phẩm học sinh; hình ảnh phù hợp.",
+    "note": "Nếu tiết sinh hoạt đã tính trong nhiệm vụ giờ dạy (GVBM STT 1) thì không tính lại cùng tiết ở dòng này.",
+    "alert": "Tránh tính trùng tiết sinh hoạt với giờ dạy GVBM",
+    "exceedCriteria": "Đổi mới hình thức sinh hoạt lớp (học sinh làm chủ, sân khấu hóa, diễn đàn kỹ năng sống/hướng nghiệp/chuyển đổi số, dự án trải nghiệm) tạo sản phẩm thực tế và gắn kết tập thể lớp nổi bật.",
+    "defaultSelected": true,
+    "unitHint": "VD: 1 tiết/tuần + hoạt động"
+  },
+  {
+    "id": "gvcn-4",
+    "stt": 4,
+    "role": "gvcn",
+    "phase": "core",
+    "hidden": false,
+    "subTag": "Gom GVCN 6+8",
+    "qtyAuthority": "tt",
+    "adminFixedQty": 1,
+    "noExceed": false,
+    "title": "Theo dõi chuyên cần, nền nếp, hỗ trợ học sinh và phối hợp với gia đình, GVBM",
+    "groupLabel": "Nhóm 1: Nhiệm vụ theo dõi, giáo dục, hỗ trợ và phối hợp thường xuyên",
+    "points": 100,
+    "pointsDisplay": "100",
+    "product": "Sổ/bảng theo dõi nền nếp; cuộc họp, lượt trao đổi hoặc hồ sơ phối hợp với gia đình và GVBM; nhật ký hỗ trợ và ghi nhận tiến bộ của học sinh.",
+    "quality": "Thông tin đã kiểm chứng, phản ánh trung thực; xác định rõ nguyên nhân, biện pháp hỗ trợ phù hợp từng học sinh và trách nhiệm các bên; giao tiếp tôn trọng, bảo mật; báo cáo kịp thời trường hợp vượt thẩm quyền.",
+    "progress": "Theo dõi theo lịch công tác; họp/trao đổi theo lịch hẹn hoặc khi phát sinh nhu cầu; báo ngay vấn đề khẩn.",
+    "evidence": "Sổ theo dõi; biên bản họp CMHS; nhật ký liên hệ/phối hợp; nhật ký hỗ trợ và ghi nhận tiến bộ học sinh.",
+    "note": "Thống nhất đơn vị tính theo cuộc/lượt/vụ việc (không đếm từng tin nhắn); không tính lại thao tác nhập điểm danh vnEdu ở GVCN STT 2.",
+    "alert": "",
+    "exceedCriteria": "Xây dựng kênh phối hợp số minh bạch với gia đình và có hồ sơ hỗ trợ cá thể hóa giúp học sinh cá biệt/nguy cơ sa sút chuyển biến rõ rệt (có đối chứng) hoặc lớp dẫn đầu thi đua/văn hóa học đường.",
+    "defaultSelected": true,
+    "unitHint": "VD: Họp CMHS + hỗ trợ hằng tuần"
+  }
+];
 
     const DEFAULT_UI_CONFIG = {
       showTeacherBar: true,
@@ -1542,6 +1706,7 @@
       showOptionalTab: true,
       showEmergingTab: true,
       showRulesBtn: true,
+      excellentRule: "either", // "either" (1 trong 2) | "both" (đồng thời cả 2 theo CV 5142)
       alertTitle: "Lưu ý quan trọng ngay từ đầu quý để không bị trừ điểm tiến độ (5%/ngày chậm)",
       alertLines: [
         "KHBD & Chuyên đề: tải lên vnedu.vn trước ngày Thứ 2 tuần mới.",
@@ -1607,7 +1772,7 @@
     // =========================================================================
     // STATE MANAGEMENT & ADMIN SEED LOADER
     // =========================================================================
-    const STORAGE_KEY = "kpi_dauquy_gv_lamdong_v2";
+    const STORAGE_KEY = "kpi_dauquy_gv_lamdong_v3";
     const ADMIN_USER = "admin";
     const ADMIN_PASS = "huatatthanh";
 
@@ -1704,7 +1869,7 @@
     // School-wide meetings/training -> admin; teaching/homeroom/specialized -> tt
     function getTaskQtyAuthority(task) {
       if (task.qtyAuthority === "admin" || task.qtyAuthority === "tt") return task.qtyAuthority;
-      if (["gvbm-10", "gvbm-11", "gvbm-12", "gvbm-13"].includes(task.id)) return "admin";
+      if (["gvbm-5", "gvbm-6", "gvbm-7"].includes(task.id)) return "admin";
       return "tt";
     }
 
@@ -1712,22 +1877,42 @@
       if (task.adminFixedQty !== undefined && task.adminFixedQty !== null && task.adminFixedQty !== "") {
         return Math.max(0, Number(task.adminFixedQty) || 0);
       }
-      if (task.id === "gvbm-11") return 4;
-      if (task.id === "gvbm-10") return 2;
+      if (task.id === "gvbm-6") return 4;
+      if (task.id === "gvbm-5") return 2;
       return 1;
+    }
+
+    const DEFAULT_EXCEED_MAP = {"gvbm-1": {"noExceed": false, "text": "Tổ chức dạy học tích cực (STEM/STEAM, dự án, mô phỏng trực quan/tương tác 2D–3D, trò chơi hóa) tạo sản phẩm học tập thực tế; hoặc tiết dự giờ/thao giảng xếp loại Xuất sắc, có minh chứng tỷ lệ học sinh hiểu bài/tiến bộ rõ rệt."}, "gvbm-2": {"noExceed": false, "text": "Tích hợp học liệu số tương tác, bài tập phân hóa theo năng lực hoặc ứng dụng AI có kiểm chứng để thiết kế tình huống thực tiễn; trình duyệt 0 lỗi và được tổ chuyên môn chọn làm kế hoạch bài dạy mẫu chia sẻ dùng chung."}, "gvbm-3": {"noExceed": false, "text": "Thiết kế ma trận và đặc tả gắn bối cảnh thực tiễn/liên môn theo định dạng đánh giá mới (Đúng–Sai, Trả lời ngắn), phân hóa chuẩn xác năng lực học sinh, 0 lỗi phản biện và được chọn làm khung chuẩn của khối."}, "gvbm-4": {"noExceed": false, "text": "Biên soạn bộ đề mới 100% có câu hỏi vận dụng thực tiễn/tư duy bậc cao, kèm hướng dẫn chấm đa cách giải hoặc báo cáo phân tích lỗi sai phổ biến sau chấm để điều chỉnh giảng dạy; 0 lỗi kỹ thuật."}, "gvbm-5": {"noExceed": false, "text": "Chuyên đề xây dựng hệ thống phương pháp mới/tổng quát hóa, phân tầng độ khó rõ ràng, tích hợp ngân hàng bài tập mở rộng hoặc tài liệu tự học số tái sử dụng được cho nhiều khóa đội tuyển."}, "gvbm-6": {"noExceed": false, "text": "Áp dụng huấn luyện cá thể hóa theo điểm mạnh/yếu từng học sinh, có nhật ký theo dõi tiến bộ qua từng đợt thi thử và giúp học sinh đạt giải hoặc vượt ngưỡng điểm mục tiêu."}, "gvbm-7": {"noExceed": false, "text": "Thiết kế lộ trình lấp lỗ hổng kiến thức trực quan, chia nhỏ bước kèm phiếu tự luyện có mã QR/video hướng dẫn ngắn giúp học sinh yếu tự ôn tập hiệu quả tại nhà."}, "gvbm-8": {"noExceed": false, "text": "Có số liệu kiểm chứng tỷ lệ học sinh chuyển từ mức Chưa đạt lên Đạt rõ rệt sau đợt phụ đạo (kèm bài kiểm tra đối chứng trước–sau)."}, "gvbm-9": {"noExceed": true, "text": "Nhiệm vụ chấp hành quy trình chuẩn — chỉ đánh giá Đạt / Không đạt (không xét vượt mức để tránh lạm phát tỷ lệ 30%)."}, "gvbm-10": {"noExceed": true, "text": "Nhiệm vụ thường xuyên — chỉ đánh giá Đạt / Không đạt (chỉ ghi nhận nổi trội nếu có đề xuất cải tiến quan trọng được đưa vào nghị quyết/biên bản)."}, "gvbm-11": {"noExceed": false, "text": "Trực tiếp chủ trì/trình bày nghiên cứu bài học, chia sẻ công cụ số/AI hoặc phương pháp mới được đồng nghiệp trong tổ vận dụng thực tế vào lớp học (có biên bản/phản hồi ghi nhận)."}, "gvbm-12": {"noExceed": false, "text": "Chuyển hóa nội dung bồi dưỡng thành sản phẩm ứng dụng thực tế tại lớp/tổ (bài dạy minh họa, chuyên đề tập huấn lại cho đồng nghiệp hoặc bộ hướng dẫn thực hành)."}, "gvbm-13": {"noExceed": false, "text": "Hồ sơ số hóa khoa học, dễ tra cứu; báo cáo có phân tích số liệu trực quan (biểu đồ, đối chứng) và đề xuất giải pháp cải tiến chất lượng khả thi cho tổ/nhà trường."}, "gvbm-14": {"noExceed": false, "text": "Nhập liệu chính xác 0 sai sót, đồng thời khai thác dữ liệu điểm để phân tích phổ điểm/cảnh báo sớm học sinh sa sút gửi GVCN và gia đình kịp thời hỗ trợ."}, "gvbm-15": {"noExceed": false, "text": "Xây dựng học liệu số tương tác (web app, mô phỏng, video, flashcard, trắc nghiệm tự chấm) hoạt động tốt trên điện thoại/máy tính, có minh chứng lượt học sinh hoặc giáo viên khai thác thực tế."}, "gvbm-16": {"noExceed": false, "text": "Ngân hàng câu hỏi chuẩn hóa định dạng thi mới, phân loại chủ đề/mức độ khoa học, kèm lời giải chi tiết và đưa vào sử dụng thực tế trên nền tảng ôn luyện/kiểm tra trực tuyến."}, "gvbm-17": {"noExceed": false, "text": "Thiết kế rubric/bảng kiểm đánh giá năng lực thực hành, sản phẩm dự án hoặc công cụ đánh giá số giúp học sinh nhận phản hồi nhanh và tối ưu thời gian chấm."}, "gvbm-18": {"noExceed": false, "text": "Sản phẩm/mô hình sáng tạo, ứng dụng STEM/công nghệ hoặc vật liệu thân thiện môi trường, được sử dụng hiệu quả ở nhiều lớp hoặc đạt giải cấp trường/tỉnh."}, "gvbm-19": {"noExceed": false, "text": "Giải pháp được triển khai thử nghiệm thực tế, tạo chuyển biến rõ rệt về chất lượng mũi nhọn/NCKH/kỳ thi (có số liệu đối chứng hoặc giải thưởng kiểm chứng)."}, "gvbm-20": {"noExceed": false, "text": "Sản phẩm/quy trình ứng dụng AI và công nghệ số giải quyết đúng bài toán thực tế, có hướng dẫn kiểm chứng độ chính xác, bảo mật và được đồng nghiệp áp dụng rộng rãi."}, "gvbm-21": {"noExceed": false, "text": "Sản phẩm dự thi có tính ứng dụng cao trong giảng dạy thực tế tại trường hoặc đạt giải thưởng cấp trên công nhận."}, "gvbm-22": {"noExceed": false, "text": "Báo cáo chuyên đề cấp cụm có sản phẩm minh họa thực tiễn, được hội đồng cụm đánh giá cao và lan tỏa áp dụng tại các trường bạn."}, "gvbm-23": {"noExceed": false, "text": "Sản phẩm/giải pháp đột phá tạo chuyển biến đo lường được cho hoạt động chuyên môn của tổ hoặc nhà trường."}, "gvbm-24": {"noExceed": false, "text": "Chủ động đảm nhận và triển khai thành công nhiệm vụ mới, khó hoặc đột xuất, tổng kết được quy trình mẫu cho đơn vị."}, "gvcn-1": {"noExceed": false, "text": "Kế hoạch chủ nhiệm tích hợp giáo dục kỹ năng số, an toàn không gian mạng, hướng nghiệp hoặc sức khỏe học đường sát đặc thù lớp, có chỉ số đánh giá cụ thể."}, "gvcn-2": {"noExceed": false, "text": "Sổ chủ nhiệm điện tử cập nhật khoa học kết hợp bảng theo dõi số hóa giúp phát hiện sớm xu hướng học tập–rèn luyện của từng học sinh."}, "gvcn-3": {"noExceed": true, "text": "Nghiệp vụ chuẩn hóa dữ liệu định kỳ — chỉ đánh giá Đạt / Không đạt (không xét vượt mức)."}, "gvcn-4": {"noExceed": true, "text": "Nghiệp vụ nhập liệu chuyên cần định kỳ — chỉ đánh giá Đạt / Không đạt (không xét vượt mức)."}, "gvcn-5": {"noExceed": true, "text": "Nghiệp vụ nhập kết quả đã phê duyệt theo học kỳ — chỉ đánh giá Đạt / Không đạt (không xét vượt mức)."}, "gvcn-6": {"noExceed": false, "text": "Xây dựng kênh phối hợp số minh bạch, tôn trọng giữa gia đình và GVBM giúp hỗ trợ chuyển biến rõ rệt học sinh gặp khó khăn/nguy cơ sa sút."}, "gvcn-7": {"noExceed": false, "text": "Đổi mới hình thức sinh hoạt lớp (học sinh làm chủ, diễn đàn kỹ năng sống/hướng nghiệp/chuyển đổi số, dự án trải nghiệm) tạo sản phẩm thực tế và gắn kết tập thể lớp nổi bật."}, "gvcn-8": {"noExceed": false, "text": "Có hồ sơ hỗ trợ cá thể hóa giúp học sinh cá biệt/khó khăn tiến bộ rõ rệt (giảm vi phạm, tăng chuyên cần, cải thiện học tập có đối chứng) hoặc tập thể lớp đạt thành tích nổi bật."}};
+
+    function getTaskExceedCriteria(task) {
+      if (typeof task.exceedCriteria === "string" && task.exceedCriteria.trim()) return task.exceedCriteria.trim();
+      return (DEFAULT_EXCEED_MAP[task.id] && DEFAULT_EXCEED_MAP[task.id].text) || "Có đổi mới sáng tạo, ứng dụng công nghệ số/AI hoặc tạo hiệu quả thực tiễn nổi bật được minh chứng rõ ràng.";
+    }
+
+    function isTaskNoExceed(task) {
+      if (typeof task.noExceed === "boolean") return task.noExceed;
+      return !!(DEFAULT_EXCEED_MAP[task.id] && DEFAULT_EXCEED_MAP[task.id].noExceed);
     }
 
     function getAssignedQtyForUser(task, username) {
       const auth = getTaskQtyAuthority(task);
       const uMap = username ? assignedQuotas[username] : null;
-      if (auth === "tt") {
-        if (uMap && uMap[task.id] !== undefined) return Number(uMap[task.id]);
-        return getTaskDefaultQty(task);
-      } else {
-        // Admin-assigned: check per-user override first, else task's adminFixedQty
-        if (uMap && uMap[task.id] !== undefined) return Number(uMap[task.id]);
-        return getTaskDefaultQty(task);
+      if (uMap && uMap[task.id] !== undefined) {
+        return Math.max(0, Number(uMap[task.id]) || 0);
       }
+      // If Admin explicitly assigned this task to specific users, default qty > 0 for them
+      if (Array.isArray(task.assignedUsers) && task.assignedUsers.length > 0) {
+        if (username && task.assignedUsers.includes(username)) {
+          return Math.max(1, getTaskDefaultQty(task));
+        }
+        return 0;
+      }
+      // For TT-authority tasks: 0 (not assigned yet) until TT or Admin explicitly assigns a quantity > 0
+      if (auth === "tt") {
+        return 0;
+      }
+      // For Admin-authority school-wide tasks: use Admin's fixed quantity
+      return getTaskDefaultQty(task);
     }
 
     function extractDriveFolderId(url) {
@@ -1988,7 +2173,20 @@ function jsonOut(obj) {
       return taskRole === state.role;
     }
 
+    function isTaskAssignedToCurrentUser(task) {
+      if (state.isAdmin) return true;
+      if (!currentUser) return false;
+      // If Admin restricted task to specific users, enforce membership first
+      if (Array.isArray(task.assignedUsers) && task.assignedUsers.length > 0 && !task.assignedUsers.includes(currentUser.username)) {
+        return false;
+      }
+      // Teacher ONLY sees tasks explicitly assigned with quantity > 0 by TT or Admin
+      const qty = getAssignedQtyForUser(task, currentUser.username);
+      return qty > 0;
+    }
+
     function isTaskVisible(task) {
+      if (!isTaskAssignedToCurrentUser(task)) return false;
       if (!task.hidden) return true;
       return state.isAdmin && state.adminShowHidden;
     }
@@ -2138,7 +2336,7 @@ function jsonOut(obj) {
         );
       });
 
-      const activeTasks = state.tasks.filter(t => !t.hidden);
+      const activeTasks = state.tasks.filter(t => !t.hidden && isTaskAssignedToCurrentUser(t));
       const gvbmCoreCnt = activeTasks.filter(t => t.role === "gvbm" && t.phase === "core").length;
       const gvbmOptCnt = activeTasks.filter(t => t.role === "gvbm" && t.phase === "optional").length;
       const helperMap = {
@@ -2278,6 +2476,17 @@ function jsonOut(obj) {
         ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-rose-100 text-rose-700 border border-rose-200"><i data-lucide="eye-off" class="w-3 h-3"></i>Đang ẩn với GV</span>`
         : "";
 
+      const assignedArr = Array.isArray(task.assignedUsers) ? task.assignedUsers : [];
+      const assignedNames = assignedArr.map(u => {
+        const acc = accounts.find(a => a.username === u);
+        return acc ? acc.name : u;
+      });
+      const specificBadgeHtml = assignedArr.length
+        ? (state.isAdmin
+            ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-sky-100 text-sky-800 border border-sky-200" title="${escapeHtml(assignedNames.join(', '))}"><i data-lucide="user-check" class="w-3 h-3"></i>Giao riêng (${assignedArr.length} GV: ${escapeHtml(assignedNames.slice(0, 2).join(', '))}${assignedNames.length > 2 ? '…' : ''})</span>`
+            : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-sky-100 text-sky-800 border border-sky-200"><i data-lucide="user-check" class="w-3 h-3"></i>Admin giao riêng cho bạn</span>`)
+        : "";
+
       const alertHtml = task.alert
         ? `<div class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
              <i data-lucide="clock-alert" class="w-3.5 h-3.5 shrink-0"></i>
@@ -2318,6 +2527,10 @@ function jsonOut(obj) {
                 <i data-lucide="${task.hidden ? 'eye' : 'eye-off'}" class="w-3.5 h-3.5"></i>
                 <span>${task.hidden ? "Hiện lại" : "Ẩn"}</span>
               </button>
+              <button type="button" data-action="admin-assign-users" data-id="${task.id}" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100 text-xs font-semibold transition">
+                <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+                <span>Giao riêng GV</span>
+              </button>
               <button type="button" data-action="admin-edit-task" data-id="${task.id}" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50 text-xs font-semibold transition">
                 <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
                 <span>Sửa</span>
@@ -2355,6 +2568,7 @@ function jsonOut(obj) {
                   ${roleBadge}
                   ${renderPointsBadge(task)}
                   ${subTagHtml}
+                  ${specificBadgeHtml}
                   ${hiddenBadgeHtml}
                 </div>
                 <button type="button" data-action="toggle-expand" data-id="${task.id}"
@@ -2411,7 +2625,14 @@ function jsonOut(obj) {
                     <p class="text-slate-600 leading-relaxed">${escapeHtml(task.evidence)}</p>
                   </div>
                 </div>
-                ${task.note ? `
+                <div class="md:col-span-2 ${isTaskNoExceed(task) ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-purple-50/80 border-purple-200 text-purple-950'} rounded-xl px-3 py-2.5 border">
+                  <div class="font-bold flex items-center gap-1.5 mb-0.5">
+                    <i data-lucide="${isTaskNoExceed(task) ? 'minus-circle' : 'sparkles'}" class="w-3.5 h-3.5 ${isTaskNoExceed(task) ? 'text-slate-500' : 'text-purple-600'}"></i>
+                    <span>Tiêu chí nhận diện “Vượt mức yêu cầu” (tham khảo — chú trọng ứng dụng &amp; sáng tạo):</span>
+                  </div>
+                  <p class="leading-relaxed">${escapeHtml(getTaskExceedCriteria(task))}</p>
+                </div>
+                                ${task.note ? `
                   <div class="md:col-span-2 bg-amber-50/70 rounded-xl px-3 py-2 border border-amber-200/70 text-amber-900">
                     <strong>Lưu ý tránh chấm trùng:</strong> ${escapeHtml(task.note)}
                   </div>
@@ -2606,7 +2827,7 @@ function jsonOut(obj) {
     }
 
     function renderMyPlanTab() {
-      const selectedTasks = state.tasks.filter(t => !t.hidden && matchesRole(t.role) && state.selected[t.id] && matchesSearchAndGroup(t));
+      const selectedTasks = state.tasks.filter(t => !t.hidden && isTaskAssignedToCurrentUser(t) && matchesRole(t.role) && state.selected[t.id] && matchesSearchAndGroup(t));
       const roleEmerging = state.emergingTasks.filter(e => state.role === "both" || e.role === state.role || e.role === "chung");
 
       let html = `
@@ -2652,7 +2873,7 @@ function jsonOut(obj) {
     // =========================================================================
     function getScoringItems() {
       const items = [];
-      state.tasks.filter(t => !t.hidden && matchesRole(t.role) && state.selected[t.id]).forEach(t => {
+      state.tasks.filter(t => !t.hidden && isTaskAssignedToCurrentUser(t) && matchesRole(t.role) && state.selected[t.id]).forEach(t => {
         const gMap = { 100: 1, 150: 2, 200: 3, 250: 4 };
         const ev = state.kpiEval[t.id] || {};
         items.push({
@@ -2666,7 +2887,10 @@ function jsonOut(obj) {
           edits: ev.edits !== undefined ? Number(ev.edits) : 0,
           late: ev.late !== undefined ? Number(ev.late) : 0,
           deadline: ev.deadline !== undefined ? ev.deadline : "Theo quy định",
-          evidence: ev.evidence !== undefined ? ev.evidence : (state.quantities[t.id] || "")
+          evidence: ev.evidence !== undefined ? ev.evidence : (state.quantities[t.id] || ""),
+          exceeded: !!ev.exceeded,
+          noExceed: isTaskNoExceed(t),
+          exceedHint: getTaskExceedCriteria(t)
         });
       });
       state.emergingTasks.filter(e => state.role === "both" || e.role === state.role || e.role === "chung").forEach(e => {
@@ -2681,7 +2905,10 @@ function jsonOut(obj) {
           edits: ev.edits !== undefined ? Number(ev.edits) : 0,
           late: ev.late !== undefined ? Number(ev.late) : 0,
           deadline: ev.deadline !== undefined ? ev.deadline : (e.deadline || "Theo giao việc"),
-          evidence: ev.evidence !== undefined ? ev.evidence : (e.reference || "")
+          evidence: ev.evidence !== undefined ? ev.evidence : (e.reference || ""),
+          exceeded: !!ev.exceeded,
+          noExceed: false,
+          exceedHint: "Nhiệm vụ phát sinh/đột xuất hoàn thành chất lượng cao, hiệu quả thực tiễn rõ rệt."
         });
       });
       return items;
@@ -2740,7 +2967,22 @@ function jsonOut(obj) {
         ? Math.round(((revCommon !== null ? revCommon : commonTotal) + (revKpi !== null ? revKpi : sumS)) * 10) / 10
         : null;
 
-      return { commonTotal, subTotals, computedRows, sumH, sumP, pctKPI, kpiSelf: sumS, totalSelf, revCommon, revKpi, totalReview };
+      const totalTasksCount = computedRows.length;
+      const exceededCount = computedRows.filter(r => r.exceeded && !r.noExceed).length;
+      const exceededPct = totalTasksCount > 0 ? Math.round((exceededCount / totalTasksCount) * 100) : 0;
+      const allCompleted = totalTasksCount > 0 && computedRows.every(r => r.planned <= 0 || r.done >= r.planned);
+      const hasHardOrHighlight = computedRows.some(r => r.group >= 2) || (state.highlightsText || "").trim().length >= 10;
+      const exRule = (state.uiConfig && state.uiConfig.excellentRule) || "either";
+      const meetsExtraCond = exRule === "both"
+        ? (exceededPct >= 30 && hasHardOrHighlight)
+        : (exceededPct >= 30 || hasHardOrHighlight);
+      const eligibleExcellent = totalSelf >= 90 && allCompleted && meetsExtraCond;
+
+      return {
+        commonTotal, subTotals, computedRows, sumH, sumP, pctKPI, kpiSelf: sumS,
+        totalSelf, revCommon, revKpi, totalReview,
+        totalTasksCount, exceededCount, exceededPct, allCompleted, hasHardOrHighlight, exRule, eligibleExcellent
+      };
     }
 
     function getRankLabel(score) {
@@ -2813,6 +3055,12 @@ function jsonOut(obj) {
           <td class="px-2 py-2 text-right font-semibold text-slate-600 bg-slate-50">${r.H.toLocaleString("vi-VN")}</td>
           <td class="px-2 py-2 text-right font-semibold text-slate-800 bg-slate-50">${r.P.toLocaleString("vi-VN")}</td>
           <td class="px-2 py-2 text-right font-bold text-indigo-700 bg-indigo-50/50">${r.S.toFixed(1)}</td>
+          <td class="px-1.5 py-2 text-center">
+            ${r.noExceed
+              ? '<span class="text-[10px] text-slate-400" title="Nhiệm vụ quy trình chuẩn — không xét vượt mức">—</span>'
+              : `<input type="checkbox" data-action="eval-exceed" data-id="${r.id}" ${r.exceeded ? "checked" : ""} title="${escapeHtml(r.exceedHint)}" class="w-4 h-4 rounded border-purple-300 text-purple-600 cursor-pointer" />`
+            }
+          </td>
           <td class="px-1.5 py-2 min-w-[180px]">
             <div class="flex items-center gap-1">
               <input type="text" value="${escapeHtml(r.evidence)}" data-action="eval-field" data-id="${r.id}" data-field="evidence" placeholder="Minh chứng..."
@@ -2921,6 +3169,7 @@ function jsonOut(obj) {
                     <th class="px-2 py-2.5 text-right">Đ.Chuẩn</th>
                     <th class="px-2 py-2.5 text-right">Thực tế</th>
                     <th class="px-2 py-2.5 text-right">Quy 70đ</th>
+                    <th class="px-1.5 py-2.5 text-center" title="Tích nếu đạt tiêu chí vượt mức (ứng dụng, sáng tạo, hiệu quả cao)">Vượt mức</th>
                     <th class="px-1.5 py-2.5">Minh chứng / Ghi chú</th>
                   </tr>
                 </thead>
@@ -2984,6 +3233,15 @@ function jsonOut(obj) {
                 <div class="p-3 rounded-xl border ${selfRank.cls}">
                   <div class="text-[11px] font-semibold opacity-80">Giáo viên tự đề xuất (${sc.totalSelf.toFixed(1)}đ):</div>
                   <div class="text-sm font-extrabold mt-0.5">${selfRank.label}</div>
+                </div>
+                <div class="p-3 rounded-xl border ${sc.eligibleExcellent ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-purple-50/70 border-purple-200 text-purple-950'} text-xs space-y-1">
+                  <div class="font-bold flex items-center justify-between">
+                    <span>Đối chiếu điều kiện “Hoàn thành xuất sắc”</span>
+                    <span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${sc.eligibleExcellent ? 'bg-emerald-600 text-white' : 'bg-purple-200 text-purple-900'}">${sc.eligibleExcellent ? "Đủ điều kiện xét" : "Chưa đủ ĐK"}</span>
+                  </div>
+                  <div>• Tỷ lệ vượt mức (ứng dụng/sáng tạo): <strong>${sc.exceededCount}/${sc.totalTasksCount} (${sc.exceededPct}%)</strong> ${sc.exceededPct >= 30 ? '✓' : '(cần ≥ 30%)'}</div>
+                  <div>• Nhiệm vụ khó (Nhóm 2–4) / Sản phẩm nổi trội: <strong>${sc.hasHardOrHighlight ? "Đã có ✓" : "Chưa ghi nhận"}</strong></div>
+                  <div class="text-[11px] opacity-80">Quy chế áp dụng: ${sc.exRule === "both" ? "Đạt đồng thời cả 2 điều kiện (CV 5142)" : "Đạt 1 trong 2 điều kiện"}</div>
                 </div>
                 ${revRank ? `
                   <div class="p-3 rounded-xl border ${revRank.cls}">
@@ -3535,11 +3793,11 @@ function jsonOut(obj) {
 
       if (state.tab === "core") {
         const list = state.tasks.filter(t => t.phase === "core" && matchesRole(t.role) && isTaskVisible(t) && matchesSearchAndGroup(t));
-        container.innerHTML = renderGroupedList(list, "Không tìm thấy nhiệm vụ cơ bản nào khớp bộ lọc.");
+        container.innerHTML = renderGroupedList(list, state.isAdmin ? "Không tìm thấy nhiệm vụ cơ bản nào khớp bộ lọc." : "Chưa có nhiệm vụ nào được Tổ trưởng hoặc Admin ấn định cho bạn trong mục này (nhiệm vụ chỉ hiện khi được ấn định SL > 0).");
       } else if (state.tab === "optional") {
         const list = state.tasks.filter(t => t.phase === "optional" && matchesRole(t.role) && isTaskVisible(t) && matchesSearchAndGroup(t));
         const intro = `<div class="mb-4 p-3.5 rounded-xl bg-indigo-50/70 border border-indigo-200 text-xs text-indigo-950">Các nhiệm vụ dưới đây <strong>không bắt buộc đại trà ngay đầu quý</strong>; chỉ tích chọn vào kế hoạch khi có phân công bồi dưỡng HSG/phụ đạo, xây dựng học liệu/ngân hàng câu hỏi hoặc đăng ký thực hiện nhiệm vụ khuyến khích (AI, sáng kiến, báo cáo cụm).</div>`;
-        container.innerHTML = intro + renderGroupedList(list, "Không có nhiệm vụ chuyên sâu nào cho vai trò/bộ lọc hiện tại.");
+        container.innerHTML = intro + renderGroupedList(list, state.isAdmin ? "Không có nhiệm vụ chuyên sâu nào cho vai trò/bộ lọc hiện tại." : "Chưa có nhiệm vụ chuyên sâu/khuyến khích nào được Tổ trưởng hoặc Admin ấn định cho bạn.");
       } else if (state.tab === "emerging") {
         container.innerHTML = renderEmergingTab();
         attachEmergingFormListener();
@@ -3572,7 +3830,28 @@ function jsonOut(obj) {
       el.classList.remove("flex");
     }
 
-    function openTaskEditor(task) {
+    let editorAssignedSet = new Set();
+
+    function renderEditorAssignList() {
+      const q = (document.getElementById("editTaskAssignSearch").value || "").trim().toLowerCase();
+      const dept = document.getElementById("editTaskAssignDept").value || "all";
+      const listEl = document.getElementById("editTaskAssignList");
+      const infoEl = document.getElementById("editTaskAssignSelectedInfo");
+      const filtered = accounts.filter(a => {
+        if (dept !== "all" && a.dept !== dept) return false;
+        if (!q) return true;
+        return (a.name + " " + a.username + " " + a.dept).toLowerCase().includes(q);
+      });
+      infoEl.textContent = `Đã chọn: ${editorAssignedSet.size} giáo viên`;
+      listEl.innerHTML = filtered.map(a => `
+        <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-sky-50 cursor-pointer">
+          <input type="checkbox" data-editor-user="${escapeHtml(a.username)}" ${editorAssignedSet.has(a.username) ? "checked" : ""} class="rounded border-sky-300 text-sky-600" />
+          <span class="truncate"><strong>${escapeHtml(a.name)}</strong> <span class="text-slate-400">(${escapeHtml(a.dept)})</span></span>
+        </label>
+      `).join("");
+    }
+
+    function openTaskEditor(task, focusAssign = false) {
       const isNew = !task;
       document.getElementById("taskEditorTitle").textContent = isNew ? "Thêm nhiệm vụ mới" : `Chỉnh sửa nhiệm vụ (STT ${task.stt})`;
       document.getElementById("editTaskId").value = isNew ? "" : task.id;
@@ -3589,10 +3868,22 @@ function jsonOut(obj) {
       document.getElementById("editTaskEvidence").value = isNew ? "" : (task.evidence || "");
       document.getElementById("editTaskAlert").value = isNew ? "" : (task.alert || "");
       document.getElementById("editTaskNote").value = isNew ? "" : (task.note || "");
+      document.getElementById("editTaskExceedCriteria").value = isNew ? "" : getTaskExceedCriteria(task);
+      document.getElementById("editTaskNoExceed").checked = isNew ? false : isTaskNoExceed(task);
       document.getElementById("editTaskQtyAuthority").value = isNew ? "tt" : getTaskQtyAuthority(task);
       document.getElementById("editTaskAdminQty").value = isNew ? 1 : getTaskDefaultQty(task);
       document.getElementById("editTaskDefaultSelected").checked = isNew ? true : !!task.defaultSelected;
       document.getElementById("editTaskHidden").checked = isNew ? false : !!task.hidden;
+      const existingAssigned = (!isNew && Array.isArray(task.assignedUsers)) ? task.assignedUsers : [];
+      editorAssignedSet = new Set(existingAssigned);
+      const useSpecific = focusAssign || existingAssigned.length > 0;
+      document.getElementById("editTaskScope").value = useSpecific ? "specific" : "all";
+      document.getElementById("editTaskAssignBox").classList.toggle("hidden", !useSpecific);
+      document.getElementById("editTaskAssignSearch").value = "";
+      const depts = [...new Set(accounts.map(a => a.dept))];
+      document.getElementById("editTaskAssignDept").innerHTML = '<option value="all">Tất cả các tổ</option>' +
+        depts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join("");
+      renderEditorAssignList();
       openModal("modalTaskEditor");
     }
 
@@ -3603,6 +3894,7 @@ function jsonOut(obj) {
       document.getElementById("cfgShowOptionalTab").checked = !!cfg.showOptionalTab;
       document.getElementById("cfgShowEmergingTab").checked = !!cfg.showEmergingTab;
       document.getElementById("cfgShowRulesBtn").checked = !!cfg.showRulesBtn;
+      document.getElementById("cfgExcellentRule").value = cfg.excellentRule || "either";
       document.getElementById("cfgAlertTitle").value = cfg.alertTitle || "";
       document.getElementById("cfgAlertLines").value = (cfg.alertLines || []).join("\n");
       openModal("modalUiConfig");
@@ -3875,10 +4167,13 @@ function jsonOut(obj) {
       taskObj.evidence = document.getElementById("editTaskEvidence").value.trim();
       taskObj.alert = document.getElementById("editTaskAlert").value.trim();
       taskObj.note = document.getElementById("editTaskNote").value.trim();
+      taskObj.exceedCriteria = document.getElementById("editTaskExceedCriteria").value.trim();
+      taskObj.noExceed = document.getElementById("editTaskNoExceed").checked;
       taskObj.qtyAuthority = document.getElementById("editTaskQtyAuthority").value;
       taskObj.adminFixedQty = Math.max(0, Number(document.getElementById("editTaskAdminQty").value) || 0);
       taskObj.defaultSelected = document.getElementById("editTaskDefaultSelected").checked;
       taskObj.hidden = document.getElementById("editTaskHidden").checked;
+      taskObj.assignedUsers = document.getElementById("editTaskScope").value === "specific" ? [...editorAssignedSet] : [];
       applyPointsLevel(taskObj, document.getElementById("editTaskPoints").value);
 
       if (isNew) {
@@ -3902,6 +4197,7 @@ function jsonOut(obj) {
       state.uiConfig.showOptionalTab = document.getElementById("cfgShowOptionalTab").checked;
       state.uiConfig.showEmergingTab = document.getElementById("cfgShowEmergingTab").checked;
       state.uiConfig.showRulesBtn = document.getElementById("cfgShowRulesBtn").checked;
+      state.uiConfig.excellentRule = document.getElementById("cfgExcellentRule").value;
       state.uiConfig.alertTitle = document.getElementById("cfgAlertTitle").value.trim() || DEFAULT_UI_CONFIG.alertTitle;
       const lines = document.getElementById("cfgAlertLines").value
         .split("\n")
@@ -4070,9 +4366,12 @@ function jsonOut(obj) {
           render();
           showToast(t.hidden ? "Đã ẩn nhiệm vụ với giáo viên." : "Đã hiện lại nhiệm vụ.", "info");
         }
+      } else if (action === "admin-assign-users" && state.isAdmin) {
+        const t = state.tasks.find(x => x.id === id);
+        if (t) openTaskEditor(t, true);
       } else if (action === "admin-edit-task" && state.isAdmin) {
         const t = state.tasks.find(x => x.id === id);
-        if (t) openTaskEditor(t);
+        if (t) openTaskEditor(t, false);
       } else if (action === "export-xlsx") {
         exportOfficialXlsx();
       } else if (action === "upload-evidence") {
@@ -4124,6 +4423,11 @@ function jsonOut(obj) {
         const maxV = Number(target.dataset.max) || 1;
         const val = Math.min(maxV, Math.max(0, Number(target.value) || 0));
         state.commonScores[id] = val;
+        saveState();
+        render();
+      } else if (action === "eval-exceed") {
+        if (!state.kpiEval[id]) state.kpiEval[id] = {};
+        state.kpiEval[id].exceeded = target.checked;
         saveState();
         render();
       } else if (action === "eval-field") {
@@ -4634,6 +4938,10 @@ function jsonOut(obj) {
         if (!state.assignedSummary) {
           state.assignedSummary = found.title === "HP" ? "Phó Hiệu trưởng" : found.title === "TT" ? `Tổ trưởng ${found.dept}` : found.title === "TP" ? `Tổ phó ${found.dept}` : `Giáo viên ${found.dept}`;
         }
+        state.tasks.forEach(t => {
+          const assignedQty = getAssignedQtyForUser(t, found.username);
+          state.selected[t.id] = assignedQty > 0;
+        });
         saveState();
         if (errorEl) errorEl.classList.add("hidden");
         render();
@@ -4682,12 +4990,12 @@ function jsonOut(obj) {
         deptSel.disabled = false;
         deptSel.innerHTML = allDepts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join("");
         document.getElementById("quotaModalTitle").textContent = "Admin — Ấn định số lượng nhiệm vụ cho giáo viên";
-        document.getElementById("quotaModalSubtitle").textContent = "Admin có thể ấn định số lượng cho mọi nhiệm vụ của từng giáo viên hoặc áp dụng nhanh cho cả tổ.";
+        document.getElementById("quotaModalSubtitle").textContent = "Nhập Số lượng > 0 để GIAO nhiệm vụ cho giáo viên; để 0 = không giao (nhiệm vụ sẽ ẩn hoàn toàn bên tài khoản giáo viên).";
       } else {
         deptSel.innerHTML = `<option value="${escapeHtml(currentUser.dept)}">${escapeHtml(currentUser.dept)}</option>`;
         deptSel.disabled = true;
         document.getElementById("quotaModalTitle").textContent = `Tổ trưởng ${currentUser.dept} — Ấn định số lượng cho thành viên tổ`;
-        document.getElementById("quotaModalSubtitle").textContent = "Bạn được ấn định số lượng cho các nhiệm vụ Admin đã phân quyền TT. Giáo viên sẽ không thể tự sửa mục Số lượng.";
+        document.getElementById("quotaModalSubtitle").textContent = "Nhập Số lượng > 0 để GIAO nhiệm vụ cho thành viên; để 0 = không giao (nhiệm vụ sẽ ẩn hoàn toàn bên tài khoản giáo viên).";
       }
 
       populateQuotaMembers();
@@ -4758,6 +5066,12 @@ function jsonOut(obj) {
       const updates = collectQuotaInputs();
       assignedQuotas[username] = { ...(assignedQuotas[username] || {}), ...updates };
       saveAssignedQuotas();
+      if (currentUser) {
+        state.tasks.forEach(t => {
+          state.selected[t.id] = getAssignedQtyForUser(t, currentUser.username) > 0;
+        });
+        saveState();
+      }
       render();
       const mem = accounts.find(a => a.username === username);
       showToast(`Đã lưu số lượng ấn định cho ${mem ? mem.name : username}!`);
@@ -4771,8 +5085,163 @@ function jsonOut(obj) {
         assignedQuotas[m.username] = { ...(assignedQuotas[m.username] || {}), ...updates };
       });
       saveAssignedQuotas();
+      if (currentUser) {
+        state.tasks.forEach(t => {
+          state.selected[t.id] = getAssignedQtyForUser(t, currentUser.username) > 0;
+        });
+        saveState();
+      }
       render();
       showToast(`Đã áp dụng số lượng ấn định cho toàn bộ ${members.length} thành viên ${dept}!`);
+    });
+
+
+    document.getElementById("editTaskScope").addEventListener("change", (e) => {
+      document.getElementById("editTaskAssignBox").classList.toggle("hidden", e.target.value !== "specific");
+    });
+    document.getElementById("editTaskAssignSearch").addEventListener("input", renderEditorAssignList);
+    document.getElementById("editTaskAssignDept").addEventListener("change", renderEditorAssignList);
+    document.getElementById("editTaskAssignList").addEventListener("change", (e) => {
+      const u = e.target.dataset && e.target.dataset.editorUser;
+      if (!u) return;
+      if (e.target.checked) editorAssignedSet.add(u);
+      else editorAssignedSet.delete(u);
+      document.getElementById("editTaskAssignSelectedInfo").textContent = `Đã chọn: ${editorAssignedSet.size} giáo viên`;
+    });
+
+
+    // =========================================================================
+    // ADMIN MERGE SIMILAR TASKS HANDLERS
+    // =========================================================================
+    let mergeSelectedIds = new Set();
+
+    function renderMergeTasksList() {
+      const rf = document.getElementById("mergeRoleFilter").value || "all";
+      const listEl = document.getElementById("mergeTasksList");
+      const visible = state.tasks.filter(t => !t.hidden && (rf === "all" || t.role === rf));
+
+      document.getElementById("mergeSelectedCount").textContent = `1. Chọn các nhiệm vụ cần gom (đã chọn: ${mergeSelectedIds.size})`;
+      listEl.innerHTML = visible.map(t => `
+        <label class="flex items-start gap-2.5 p-2 rounded-lg border ${mergeSelectedIds.has(t.id) ? 'bg-violet-50 border-violet-300' : 'bg-white border-slate-200 hover:bg-slate-50'} cursor-pointer">
+          <input type="checkbox" data-merge-id="${t.id}" ${mergeSelectedIds.has(t.id) ? "checked" : ""} class="mt-0.5 rounded border-violet-400 text-violet-600" />
+          <div class="flex-1 min-w-0">
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="font-bold text-slate-400">STT ${t.stt}</span>
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${t.role === 'gvbm' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${t.role === 'gvbm' ? 'GVBM' : 'GVCN'}</span>
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700">${t.points || 100}đ</span>
+            </div>
+            <div class="font-semibold text-slate-900 mt-0.5">${escapeHtml(t.title)}</div>
+          </div>
+        </label>
+      `).join("");
+    }
+
+    function autoFillMergeMeta(customTitle) {
+      const picked = state.tasks.filter(t => mergeSelectedIds.has(t.id));
+      if (!picked.length) return;
+      if (customTitle) {
+        document.getElementById("mergeNewTitle").value = customTitle;
+      } else if (picked.length >= 2) {
+        document.getElementById("mergeNewTitle").value = picked.map(t => t.title).join(" & ");
+      }
+      document.getElementById("mergeNewRole").value = picked[0].role;
+      document.getElementById("mergeNewPhase").value = picked.some(t => t.phase === "core") ? "core" : "optional";
+      const maxPts = Math.max(...picked.map(t => Number(t.points) || 100));
+      document.getElementById("mergeNewPoints").value = [100, 150, 200, 250].includes(maxPts) ? String(maxPts) : "100";
+    }
+
+    document.getElementById("btnAdminMergeTasks").addEventListener("click", () => {
+      mergeSelectedIds = new Set();
+      document.getElementById("mergeRoleFilter").value = "all";
+      document.getElementById("mergeNewTitle").value = "";
+      renderMergeTasksList();
+      openModal("modalMergeTasks");
+    });
+    document.getElementById("btnCloseMergeTasks").addEventListener("click", () => closeModal("modalMergeTasks"));
+    document.getElementById("btnCancelMergeTasks").addEventListener("click", () => closeModal("modalMergeTasks"));
+    document.getElementById("mergeRoleFilter").addEventListener("change", renderMergeTasksList);
+
+    document.getElementById("mergeTasksList").addEventListener("change", (e) => {
+      const id = e.target.dataset && e.target.dataset.mergeId;
+      if (!id) return;
+      if (e.target.checked) mergeSelectedIds.add(id);
+      else mergeSelectedIds.delete(id);
+      renderMergeTasksList();
+      autoFillMergeMeta("");
+    });
+
+    document.querySelectorAll("[data-merge-preset]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const ids = btn.dataset.mergePreset.split(",");
+        mergeSelectedIds = new Set(ids.filter(id => state.tasks.some(t => t.id === id && !t.hidden)));
+        if (mergeSelectedIds.size < 2) {
+          showToast("Một số nhiệm vụ trong gợi ý này đã được ẩn hoặc gom trước đó.", "info");
+        }
+        renderMergeTasksList();
+        autoFillMergeMeta(btn.dataset.presetTitle || "");
+      });
+    });
+
+    document.getElementById("formMergeTasks").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const picked = state.tasks.filter(t => mergeSelectedIds.has(t.id));
+      if (picked.length < 2) {
+        showToast("Vui lòng tích chọn ít nhất 2 nhiệm vụ để gom.", "error");
+        return;
+      }
+      const newTitle = document.getElementById("mergeNewTitle").value.trim();
+      if (!newTitle) return;
+
+      const role = document.getElementById("mergeNewRole").value;
+      const phase = document.getElementById("mergeNewPhase").value;
+      const ptsVal = document.getElementById("mergeNewPoints").value;
+      const sourceAction = (document.querySelector("input[name='mergeSourceAction']:checked") || {}).value || "hide";
+
+      const uniqJoin = (arr) => [...new Set(arr.map(x => String(x || "").trim()).filter(Boolean))].join(" • ");
+      const mergedId = "merged-" + Date.now();
+      const minStt = Math.min(...picked.map(t => Number(t.stt) || 99));
+
+      const mergedTask = {
+        id: mergedId,
+        stt: minStt,
+        role,
+        phase,
+        subTag: `Gom từ ${picked.length} NV`,
+        hidden: false,
+        title: newTitle,
+        product: uniqJoin(picked.map(t => t.product)),
+        quality: uniqJoin(picked.map(t => t.quality)),
+        progress: uniqJoin(picked.map(t => t.progress)),
+        evidence: uniqJoin(picked.map(t => t.evidence)),
+        note: `Nhiệm vụ gộp từ: ${picked.map(t => "STT " + t.stt + " (" + t.title + ")").join("; ")}.`,
+        alert: uniqJoin(picked.map(t => t.alert)),
+        exceedCriteria: uniqJoin(picked.map(t => getTaskExceedCriteria(t))),
+        noExceed: picked.every(t => isTaskNoExceed(t)),
+        qtyAuthority: picked.some(t => getTaskQtyAuthority(t) === "tt") ? "tt" : "admin",
+        adminFixedQty: getTaskDefaultQty(picked[0]),
+        defaultSelected: picked.some(t => t.defaultSelected),
+        assignedUsers: [],
+        unitHint: "Nhập ghi chú triển khai..."
+      };
+      applyPointsLevel(mergedTask, ptsVal);
+
+      if (sourceAction === "delete") {
+        const pickedSet = new Set(picked.map(t => t.id));
+        state.tasks = state.tasks.filter(t => !pickedSet.has(t.id));
+        picked.forEach(t => { delete state.selected[t.id]; });
+      } else {
+        picked.forEach(t => {
+          t.hidden = true;
+          state.selected[t.id] = false;
+        });
+      }
+
+      state.tasks.push(mergedTask);
+      state.selected[mergedId] = mergedTask.defaultSelected;
+      saveState();
+      closeModal("modalMergeTasks");
+      render();
+      showToast(`Đã gom ${picked.length} nhiệm vụ thành "${newTitle}"!`);
     });
 
     // Initial render

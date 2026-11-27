@@ -42,7 +42,7 @@
 <body class="min-h-screen flex flex-col">
 
   <!-- Baked-in Admin Seed Data (updated automatically when Admin exports HTML for teachers) -->
-  <script id="kpi-seed-data" type="application/json">{"seedVersion":0,"tasks":null,"uiConfig":null,"accounts":null,"cloudConfig":null}</script>
+  <script id="kpi-seed-data" type="application/json">{"seedVersion":0,"tasks":null,"uiConfig":null,"accounts":null,"cloudConfig":null,"assignedQuotas":null}</script>
 
 
   <!-- Full-Page Login Gate (shown until Teacher or Admin logs in) -->
@@ -208,6 +208,10 @@
           <i data-lucide="hard-drive" class="w-3.5 h-3.5"></i>
           <span>Link Drive &amp; Cloud</span>
         </button>
+        <button id="btnAdminAssignQty" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition">
+          <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
+          <span>Ấn định SL giáo viên</span>
+        </button>
         <button id="btnAdminUiConfig" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-800 hover:bg-amber-700 text-amber-50 text-xs font-semibold transition">
           <i data-lucide="eye" class="w-3.5 h-3.5"></i>
           <span>Ẩn/Hiện nội dung</span>
@@ -223,6 +227,25 @@
         <button id="btnAdminLogout" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600/90 hover:bg-rose-500 text-white text-xs font-semibold transition">
           <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
           <span>Thoát Admin</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Tổ Trưởng (TT) Control Bar (visible when logged in as TT) -->
+  <div id="ttToolbar" class="hidden bg-teal-950 text-teal-50 border-b border-teal-800 shadow-md no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2 text-xs sm:text-sm font-bold text-teal-200">
+        <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-teal-400 text-slate-950">
+          <i data-lucide="user-check" class="w-4 h-4"></i>
+        </span>
+        <span id="ttToolbarTitle">QUYỀN TỔ TRƯỞNG CHUYÊN MÔN (TT)</span>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="btnTtAssignQty" type="button" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold shadow-sm transition">
+          <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
+          <span>Ấn định số lượng cho thành viên tổ</span>
         </button>
       </div>
     </div>
@@ -672,6 +695,68 @@
     </form>
   </div>
 
+
+  <!-- Modal: Tổ Trưởng / Admin Ấn định số lượng từng nhiệm vụ -->
+  <div id="modalAssignQuota" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 no-print">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="p-2 rounded-xl bg-teal-100 text-teal-700">
+            <i data-lucide="sliders" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 id="quotaModalTitle" class="text-base font-bold text-slate-900">Ấn định số lượng nhiệm vụ cho giáo viên</h2>
+            <p id="quotaModalSubtitle" class="text-xs text-slate-500">Giáo viên chỉ được xem số lượng đã ấn định, không thể tự sửa mục Số lượng.</p>
+          </div>
+        </div>
+        <button id="btnCloseAssignQuota" type="button" class="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-4 sm:p-5 overflow-y-auto space-y-4 text-xs sm:text-sm">
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end bg-teal-50/70 border border-teal-200 rounded-xl p-3.5">
+          <div id="quotaDeptWrap" class="sm:col-span-4">
+            <label for="quotaDeptSelect" class="block text-xs font-bold text-teal-950 mb-1">Tổ chuyên môn</label>
+            <select id="quotaDeptSelect" class="w-full px-3 py-2 rounded-xl border border-teal-300 bg-white text-xs sm:text-sm font-semibold"></select>
+          </div>
+          <div class="sm:col-span-5">
+            <label for="quotaMemberSelect" class="block text-xs font-bold text-teal-950 mb-1">Chọn thành viên cần ấn định</label>
+            <select id="quotaMemberSelect" class="w-full px-3 py-2 rounded-xl border border-teal-300 bg-white text-xs sm:text-sm font-bold text-slate-900"></select>
+          </div>
+          <div class="sm:col-span-3">
+            <button id="btnApplyQuotaAllDept" type="button" class="w-full px-3 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold transition" title="Áp dụng bảng số lượng hiện tại cho toàn bộ thành viên trong tổ đang chọn">
+              Áp dụng cho cả tổ
+            </button>
+          </div>
+        </div>
+
+        <div class="border border-slate-200 rounded-xl overflow-hidden">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-100 text-slate-700 border-b border-slate-200">
+              <tr>
+                <th class="px-2.5 py-2 text-center w-10">STT</th>
+                <th class="px-2.5 py-2">Nhiệm vụ</th>
+                <th class="px-2.5 py-2 text-center w-28">Vai trò</th>
+                <th class="px-2.5 py-2 text-center w-36">Quyền ấn định</th>
+                <th class="px-2.5 py-2 text-right w-28">Số lượng giao</th>
+              </tr>
+            </thead>
+            <tbody id="quotaTasksTbody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="px-5 py-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-2">
+        <span class="text-xs text-slate-500">Số lượng sau khi lưu sẽ tự động khóa cứng trên tài khoản giáo viên.</span>
+        <div class="flex gap-2">
+          <button id="btnCancelAssignQuota" type="button" class="px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-100">Đóng</button>
+          <button id="btnSaveAssignQuota" type="button" class="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-xs font-bold text-white shadow-sm">Lưu số lượng ấn định</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: Admin Task Editor (Add / Edit Task) -->
   <div id="modalTaskEditor" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 no-print">
     <form id="formTaskEditor" class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
@@ -763,6 +848,20 @@
         <div>
           <label for="editTaskNote" class="block text-xs font-semibold text-slate-700 mb-1">Ghi chú / Lưu ý tránh chấm trùng</label>
           <input id="editTaskNote" type="text" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm" />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl bg-amber-50/70 border border-amber-200">
+          <div>
+            <label for="editTaskQtyAuthority" class="block text-xs font-bold text-amber-950 mb-1">Phân quyền ấn định Số lượng (GV không tự sửa)</label>
+            <select id="editTaskQtyAuthority" class="w-full px-3 py-1.5 rounded-lg border border-amber-300 bg-white text-xs font-semibold">
+              <option value="tt">Phân quyền Tổ trưởng (TT) ấn định</option>
+              <option value="admin">Admin tự ấn định số lượng</option>
+            </select>
+          </div>
+          <div>
+            <label for="editTaskAdminQty" class="block text-xs font-bold text-amber-950 mb-1">Số lượng ấn định mặc định</label>
+            <input id="editTaskAdminQty" type="number" min="0" step="1" value="1" class="w-full px-3 py-1.5 rounded-lg border border-amber-300 bg-white text-xs font-bold" />
+          </div>
         </div>
 
         <div class="flex flex-wrap items-center gap-5 pt-1">
@@ -1580,6 +1679,56 @@
 
     let cloudConfig = loadCloudConfig();
     let pendingUploadTaskId = null;
+    const QUOTAS_STORAGE_KEY = "kpi_assigned_quotas_pct_v1";
+
+    function loadAssignedQuotas() {
+      const base = SEED.assignedQuotas ? cloneDeep(SEED.assignedQuotas) : {};
+      try {
+        const raw = localStorage.getItem(QUOTAS_STORAGE_KEY);
+        if (!raw) return base;
+        return { ...base, ...JSON.parse(raw) };
+      } catch (e) {
+        return base;
+      }
+    }
+
+    function saveAssignedQuotas() {
+      try {
+        localStorage.setItem(QUOTAS_STORAGE_KEY, JSON.stringify(assignedQuotas));
+      } catch (e) {}
+    }
+
+    let assignedQuotas = loadAssignedQuotas();
+
+    // Default authority per task if not explicitly set:
+    // School-wide meetings/training -> admin; teaching/homeroom/specialized -> tt
+    function getTaskQtyAuthority(task) {
+      if (task.qtyAuthority === "admin" || task.qtyAuthority === "tt") return task.qtyAuthority;
+      if (["gvbm-10", "gvbm-11", "gvbm-12", "gvbm-13"].includes(task.id)) return "admin";
+      return "tt";
+    }
+
+    function getTaskDefaultQty(task) {
+      if (task.adminFixedQty !== undefined && task.adminFixedQty !== null && task.adminFixedQty !== "") {
+        return Math.max(0, Number(task.adminFixedQty) || 0);
+      }
+      if (task.id === "gvbm-11") return 4;
+      if (task.id === "gvbm-10") return 2;
+      return 1;
+    }
+
+    function getAssignedQtyForUser(task, username) {
+      const auth = getTaskQtyAuthority(task);
+      const uMap = username ? assignedQuotas[username] : null;
+      if (auth === "tt") {
+        if (uMap && uMap[task.id] !== undefined) return Number(uMap[task.id]);
+        return getTaskDefaultQty(task);
+      } else {
+        // Admin-assigned: check per-user override first, else task's adminFixedQty
+        if (uMap && uMap[task.id] !== undefined) return Number(uMap[task.id]);
+        return getTaskDefaultQty(task);
+      }
+    }
 
     function extractDriveFolderId(url) {
       if (!url) return "";
@@ -1934,6 +2083,15 @@ function jsonOut(obj) {
       if (btnExpJson) btnExpJson.classList.toggle("hidden", !state.isAdmin);
       if (lblImpJson) lblImpJson.classList.toggle("hidden", !state.isAdmin);
 
+      const ttToolbar = document.getElementById("ttToolbar");
+      const isTT = !!(currentUser && String(currentUser.title || "").toUpperCase() === "TT");
+      if (ttToolbar) {
+        ttToolbar.classList.toggle("hidden", !isTT || state.isAdmin);
+        if (isTT) {
+          document.getElementById("ttToolbarTitle").textContent = `QUYỀN TỔ TRƯỞNG (${currentUser.dept}) — ${currentUser.name}`;
+        }
+      }
+
       if (state.isAdmin) {
         adminToolbar.classList.remove("hidden");
         btnAdminAuth.className = "inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-500 text-slate-950 text-sm font-bold shadow-sm transition";
@@ -2144,6 +2302,16 @@ function jsonOut(obj) {
                 <option value="core" ${task.phase === "core" ? "selected" : ""}>Cơ bản đầu quý</option>
                 <option value="optional" ${task.phase === "optional" ? "selected" : ""}>Chuyên sâu / KK</option>
               </select>
+              <label class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border border-teal-300 bg-white text-xs font-semibold text-teal-900 cursor-pointer" title="Tick để phân quyền Tổ trưởng ấn định số lượng; bỏ tick để Admin tự ấn định">
+                <input type="checkbox" data-action="admin-toggle-tt-auth" data-id="${task.id}" ${getTaskQtyAuthority(task) === "tt" ? "checked" : ""} class="rounded border-teal-400 text-teal-600" />
+                <span>Giao TT ấn định SL</span>
+              </label>
+              ${getTaskQtyAuthority(task) === "admin" ? `
+                <label class="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-indigo-300 bg-white text-xs font-semibold text-indigo-900">
+                  <span>SL Admin:</span>
+                  <input type="number" min="0" step="1" value="${getTaskDefaultQty(task)}" data-action="admin-quick-qty" data-id="${task.id}" class="w-14 px-1.5 py-0.5 rounded border border-indigo-200 text-right font-bold" />
+                </label>
+              ` : ""}
             </div>
             <div class="flex flex-wrap items-center gap-1.5">
               <button type="button" data-action="admin-toggle-hide" data-id="${task.id}" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border ${task.hidden ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'border-amber-300 bg-white text-amber-900 hover:bg-amber-100'} text-xs font-semibold transition">
@@ -2206,12 +2374,16 @@ function jsonOut(obj) {
 
               ${alertHtml}
 
-              <!-- Planned quantity / note input -->
-              <div class="mt-3 flex flex-col sm:flex-row sm:items-center gap-2">
-                <label class="text-xs font-medium text-slate-500 shrink-0">Khối lượng / Ghi chú đầu quý:</label>
+              <!-- Assigned quantity (locked for teachers) + note input -->
+              <div class="mt-3 flex flex-wrap items-center gap-2.5">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700" title="Số lượng được ấn định bởi Admin hoặc Tổ trưởng — Giáo viên không tự sửa">
+                  <i data-lucide="lock" class="w-3 h-3 text-slate-500"></i>
+                  <span>SL giao: ${getAssignedQtyForUser(task, currentUser ? currentUser.username : null)}</span>
+                  <span class="font-normal text-slate-500">(${getTaskQtyAuthority(task) === "tt" ? "TT ấn định" : "Admin ấn định"})</span>
+                </span>
                 <input type="text" data-action="edit-qty" data-id="${task.id}" value="${escapeHtml(qtyVal)}"
-                  placeholder="${escapeHtml(task.unitHint || 'Nhập số lượng/mốc dự kiến...')}"
-                  class="flex-1 max-w-md px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                  placeholder="${escapeHtml(task.unitHint || 'Ghi chú triển khai đầu quý...')}"
+                  class="flex-1 min-w-[180px] max-w-md px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
               </div>
 
               <!-- Expandable details -->
@@ -2488,8 +2660,9 @@ function jsonOut(obj) {
           title: t.title,
           group: Number(ev.group) || gMap[t.points] || 1,
           product: ev.product !== undefined ? ev.product : (t.product || ""),
-          planned: ev.planned !== undefined ? Number(ev.planned) : 1,
-          done: ev.done !== undefined ? Number(ev.done) : 1,
+          qtyAuthority: getTaskQtyAuthority(t),
+          planned: getAssignedQtyForUser(t, currentUser ? currentUser.username : null),
+          done: ev.done !== undefined ? Number(ev.done) : getAssignedQtyForUser(t, currentUser ? currentUser.username : null),
           edits: ev.edits !== undefined ? Number(ev.edits) : 0,
           late: ev.late !== undefined ? Number(ev.late) : 0,
           deadline: ev.deadline !== undefined ? ev.deadline : "Theo quy định",
@@ -2621,8 +2794,9 @@ function jsonOut(obj) {
             </select>
           </td>
           <td class="px-1.5 py-2 text-center">
-            <input type="number" min="0" step="1" value="${r.planned}" data-action="eval-field" data-id="${r.id}" data-field="planned"
-              class="w-16 px-1.5 py-1 rounded-lg border border-amber-300 bg-amber-50/70 text-right text-xs font-semibold" />
+            <input type="number" min="0" step="1" value="${r.planned}" ${state.isAdmin ? 'data-action="admin-eval-planned"' : "disabled"} data-id="${r.id}"
+              title="${state.isAdmin ? 'Admin có thể sửa trực tiếp' : 'Số lượng do ' + (r.qtyAuthority === 'tt' ? 'Tổ trưởng' : 'Admin') + ' ấn định — GV không được sửa'}"
+              class="w-16 px-1.5 py-1 rounded-lg border ${state.isAdmin ? 'border-amber-300 bg-amber-50/70 text-slate-900' : 'border-slate-200 bg-slate-100 text-slate-600 cursor-not-allowed'} text-right text-xs font-semibold" />
           </td>
           <td class="px-1.5 py-2 text-center">
             <input type="number" min="0" step="1" value="${r.done}" data-action="eval-field" data-id="${r.id}" data-field="done"
@@ -3300,9 +3474,13 @@ function jsonOut(obj) {
 
             <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5 text-xs">
               <div>
-                <label class="block text-[11px] font-semibold text-slate-500 mb-1">SL giao</label>
-                <input type="number" min="0" value="${r.planned}" data-action="eval-field" data-id="${r.id}" data-field="planned"
-                  class="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 font-semibold text-right" />
+                <label class="block text-[11px] font-semibold text-slate-500 mb-1 flex items-center gap-1">
+                  <span>SL giao</span>
+                  ${state.isAdmin ? "" : '<i data-lucide="lock" class="w-3 h-3 text-slate-400"></i>'}
+                </label>
+                <input type="number" min="0" value="${r.planned}" ${state.isAdmin ? 'data-action="admin-eval-planned"' : "disabled"} data-id="${r.id}"
+                  title="${state.isAdmin ? 'Admin có thể sửa trực tiếp' : 'Số lượng do ' + (r.qtyAuthority === 'tt' ? 'Tổ trưởng' : 'Admin') + ' ấn định — GV không được sửa'}"
+                  class="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 ${state.isAdmin ? 'bg-amber-50 font-bold text-slate-900' : 'bg-slate-100 text-slate-600 cursor-not-allowed'} font-semibold text-right" />
               </div>
               <div>
                 <label class="block text-[11px] font-semibold text-slate-500 mb-1">SL đã hoàn thành</label>
@@ -3411,6 +3589,8 @@ function jsonOut(obj) {
       document.getElementById("editTaskEvidence").value = isNew ? "" : (task.evidence || "");
       document.getElementById("editTaskAlert").value = isNew ? "" : (task.alert || "");
       document.getElementById("editTaskNote").value = isNew ? "" : (task.note || "");
+      document.getElementById("editTaskQtyAuthority").value = isNew ? "tt" : getTaskQtyAuthority(task);
+      document.getElementById("editTaskAdminQty").value = isNew ? 1 : getTaskDefaultQty(task);
       document.getElementById("editTaskDefaultSelected").checked = isNew ? true : !!task.defaultSelected;
       document.getElementById("editTaskHidden").checked = isNew ? false : !!task.hidden;
       openModal("modalTaskEditor");
@@ -3435,7 +3615,8 @@ function jsonOut(obj) {
         tasks: state.tasks,
         uiConfig: state.uiConfig,
         accounts: accounts,
-        cloudConfig: cloudConfig
+        cloudConfig: cloudConfig,
+        assignedQuotas: assignedQuotas
       };
       const seedJson = JSON.stringify(seedPayload).replace(/<\/script>/gi, "<\\/script>");
       const docClone = document.documentElement.cloneNode(true);
@@ -3694,6 +3875,8 @@ function jsonOut(obj) {
       taskObj.evidence = document.getElementById("editTaskEvidence").value.trim();
       taskObj.alert = document.getElementById("editTaskAlert").value.trim();
       taskObj.note = document.getElementById("editTaskNote").value.trim();
+      taskObj.qtyAuthority = document.getElementById("editTaskQtyAuthority").value;
+      taskObj.adminFixedQty = Math.max(0, Number(document.getElementById("editTaskAdminQty").value) || 0);
       taskObj.defaultSelected = document.getElementById("editTaskDefaultSelected").checked;
       taskObj.hidden = document.getElementById("editTaskHidden").checked;
       applyPointsLevel(taskObj, document.getElementById("editTaskPoints").value);
@@ -3954,6 +4137,29 @@ function jsonOut(obj) {
         state.schoolReview[field] = target.value;
         saveState();
         render();
+      } else if (action === "admin-toggle-tt-auth" && state.isAdmin) {
+        const t = state.tasks.find(x => x.id === id);
+        if (t) {
+          t.qtyAuthority = target.checked ? "tt" : "admin";
+          saveState();
+          render();
+          showToast(t.qtyAuthority === "tt" ? "Đã phân quyền Tổ trưởng ấn định số lượng nhiệm vụ này." : "Đã chuyển về Admin tự ấn định số lượng.", "info");
+        }
+      } else if (action === "admin-quick-qty" && state.isAdmin) {
+        const t = state.tasks.find(x => x.id === id);
+        if (t) {
+          t.adminFixedQty = Math.max(0, Number(target.value) || 0);
+          saveState();
+          render();
+          showToast(`Đã ấn định số lượng = ${t.adminFixedQty} cho nhiệm vụ này.`);
+        }
+      } else if (action === "admin-eval-planned" && state.isAdmin) {
+        const t = state.tasks.find(x => x.id === id);
+        if (t) {
+          t.adminFixedQty = Math.max(0, Number(target.value) || 0);
+          saveState();
+          render();
+        }
       }
     });
 
@@ -4457,6 +4663,116 @@ function jsonOut(obj) {
         document.getElementById("gatePass").value = "";
         document.getElementById("gatePass").type = "password";
       }
+    });
+
+
+    // =========================================================================
+    // TỔ TRƯỞNG (TT) & ADMIN QUOTA ASSIGNMENT HANDLERS
+    // =========================================================================
+    function openAssignQuotaModal() {
+      const isTT = !!(currentUser && String(currentUser.title || "").toUpperCase() === "TT");
+      if (!state.isAdmin && !isTT) return;
+
+      const deptSel = document.getElementById("quotaDeptSelect");
+      const deptWrap = document.getElementById("quotaDeptWrap");
+      const allDepts = [...new Set(accounts.map(a => a.dept))];
+
+      if (state.isAdmin) {
+        deptWrap.classList.remove("opacity-60");
+        deptSel.disabled = false;
+        deptSel.innerHTML = allDepts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join("");
+        document.getElementById("quotaModalTitle").textContent = "Admin — Ấn định số lượng nhiệm vụ cho giáo viên";
+        document.getElementById("quotaModalSubtitle").textContent = "Admin có thể ấn định số lượng cho mọi nhiệm vụ của từng giáo viên hoặc áp dụng nhanh cho cả tổ.";
+      } else {
+        deptSel.innerHTML = `<option value="${escapeHtml(currentUser.dept)}">${escapeHtml(currentUser.dept)}</option>`;
+        deptSel.disabled = true;
+        document.getElementById("quotaModalTitle").textContent = `Tổ trưởng ${currentUser.dept} — Ấn định số lượng cho thành viên tổ`;
+        document.getElementById("quotaModalSubtitle").textContent = "Bạn được ấn định số lượng cho các nhiệm vụ Admin đã phân quyền TT. Giáo viên sẽ không thể tự sửa mục Số lượng.";
+      }
+
+      populateQuotaMembers();
+      openModal("modalAssignQuota");
+    }
+
+    function populateQuotaMembers() {
+      const dept = document.getElementById("quotaDeptSelect").value;
+      const members = accounts.filter(a => a.dept === dept);
+      const memSel = document.getElementById("quotaMemberSelect");
+      memSel.innerHTML = members.map(m =>
+        `<option value="${escapeHtml(m.username)}">${escapeHtml(m.name)}${m.title ? " (" + escapeHtml(m.title) + ")" : ""} — ${escapeHtml(m.username)}</option>`
+      ).join("");
+      renderQuotaTasksTable();
+    }
+
+    function renderQuotaTasksTable() {
+      const username = document.getElementById("quotaMemberSelect").value;
+      const tbody = document.getElementById("quotaTasksTbody");
+      const visibleTasks = state.tasks.filter(t => !t.hidden);
+
+      tbody.innerHTML = visibleTasks.map((t, idx) => {
+        const auth = getTaskQtyAuthority(t);
+        const canEdit = state.isAdmin || auth === "tt";
+        const curQty = getAssignedQtyForUser(t, username);
+        const authBadge = auth === "tt"
+          ? '<span class="px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 font-bold">TT ấn định</span>'
+          : '<span class="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 font-bold">Admin ấn định</span>';
+        const roleBadge = t.role === "gvbm"
+          ? '<span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">GVBM</span>'
+          : '<span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold">GVCN</span>';
+
+        return `
+          <tr class="${canEdit ? 'hover:bg-teal-50/40' : 'bg-slate-50/80 text-slate-400'}">
+            <td class="px-2.5 py-2 text-center font-semibold">${idx + 1}</td>
+            <td class="px-2.5 py-2 font-medium text-slate-800">${escapeHtml(t.title)}</td>
+            <td class="px-2.5 py-2 text-center">${roleBadge}</td>
+            <td class="px-2.5 py-2 text-center">${authBadge}</td>
+            <td class="px-2.5 py-1.5 text-right">
+              <input type="number" min="0" step="1" value="${curQty}" data-quota-task="${t.id}" ${canEdit ? "" : "disabled"}
+                class="w-20 px-2 py-1 rounded-lg border ${canEdit ? 'border-teal-300 bg-white font-bold text-slate-900' : 'border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed'} text-right text-xs" />
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function collectQuotaInputs() {
+      const map = {};
+      document.querySelectorAll("#quotaTasksTbody input[data-quota-task]").forEach(inp => {
+        if (!inp.disabled) {
+          map[inp.dataset.quotaTask] = Math.max(0, Number(inp.value) || 0);
+        }
+      });
+      return map;
+    }
+
+    document.getElementById("btnTtAssignQty").addEventListener("click", openAssignQuotaModal);
+    document.getElementById("btnAdminAssignQty").addEventListener("click", openAssignQuotaModal);
+    document.getElementById("btnCloseAssignQuota").addEventListener("click", () => closeModal("modalAssignQuota"));
+    document.getElementById("btnCancelAssignQuota").addEventListener("click", () => closeModal("modalAssignQuota"));
+    document.getElementById("quotaDeptSelect").addEventListener("change", populateQuotaMembers);
+    document.getElementById("quotaMemberSelect").addEventListener("change", renderQuotaTasksTable);
+
+    document.getElementById("btnSaveAssignQuota").addEventListener("click", () => {
+      const username = document.getElementById("quotaMemberSelect").value;
+      if (!username) return;
+      const updates = collectQuotaInputs();
+      assignedQuotas[username] = { ...(assignedQuotas[username] || {}), ...updates };
+      saveAssignedQuotas();
+      render();
+      const mem = accounts.find(a => a.username === username);
+      showToast(`Đã lưu số lượng ấn định cho ${mem ? mem.name : username}!`);
+    });
+
+    document.getElementById("btnApplyQuotaAllDept").addEventListener("click", () => {
+      const dept = document.getElementById("quotaDeptSelect").value;
+      const members = accounts.filter(a => a.dept === dept);
+      const updates = collectQuotaInputs();
+      members.forEach(m => {
+        assignedQuotas[m.username] = { ...(assignedQuotas[m.username] || {}), ...updates };
+      });
+      saveAssignedQuotas();
+      render();
+      showToast(`Đã áp dụng số lượng ấn định cho toàn bộ ${members.length} thành viên ${dept}!`);
     });
 
     // Initial render

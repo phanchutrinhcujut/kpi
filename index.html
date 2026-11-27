@@ -81,12 +81,20 @@
             <i data-lucide="calculator" class="w-4 h-4 text-indigo-300"></i>
             <span>Quy định &amp; Tính thử KPI</span>
           </button>
-          <button id="btnExportJson" type="button" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-sm font-medium text-white transition" title="Lưu dữ liệu kế hoạch để giữa quý mở lại cập nhật">
-            <i data-lucide="download" class="w-4 h-4 text-emerald-300"></i>
+          <button id="btnSyncToSystem" type="button" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-sm font-bold shadow-sm transition" title="Lưu và đồng bộ dữ liệu KPI của bạn lên hệ thống nhà trường">
+            <i data-lucide="cloud-upload" class="w-4 h-4"></i>
+            <span>Cập nhật lên hệ thống</span>
+          </button>
+          <button id="btnHeaderExportXlsx" type="button" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold shadow-sm transition" title="Xuất phiếu chấm điểm KPI chuẩn mẫu Excel (.xlsx)">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+            <span>Xuất Excel (.xlsx)</span>
+          </button>
+          <button id="btnExportJson" type="button" class="hidden inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-medium text-white transition" title="Sao lưu dữ liệu JSON">
+            <i data-lucide="download" class="w-3.5 h-3.5 text-emerald-300"></i>
             <span>Lưu file</span>
           </button>
-          <label class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-sm font-medium text-white transition cursor-pointer" title="Mở lại bản kế hoạch đã lưu để cập nhật nhiệm vụ phát sinh">
-            <i data-lucide="upload" class="w-4 h-4 text-sky-300"></i>
+          <label id="lblImportJson" class="hidden inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-medium text-white transition cursor-pointer" title="Mở file JSON của giáo viên">
+            <i data-lucide="upload" class="w-3.5 h-3.5 text-sky-300"></i>
             <span>Mở file</span>
             <input id="inputImportJson" type="file" accept=".json" class="hidden" />
           </label>
@@ -1555,6 +1563,34 @@ function doPost(e) {
       (data.accounts || []).forEach(a => sh.appendRow([a.name, a.dept, a.title || "", a.username, a.password || ""]));
       return jsonOut({ ok: true, count: (data.accounts || []).length });
     }
+    if (data.action === "saveEvaluation") {
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sh = ss.getSheetByName("DuLieuKPI") || ss.insertSheet("DuLieuKPI");
+      if (sh.getLastRow() === 0) {
+        sh.appendRow(["ThoiGianCapNhat", "TaiKhoan", "HoVaTen", "ToChuyenMon", "KyDanhGia", "DiemTieuChiChung", "DiemKPI70", "TongDiemTuCham", "XepLoaiDeXuat", "DiemRaSoat", "ChiTietJSON"]);
+      }
+      const rowData = [
+        new Date(), data.username || "", data.teacherName || "", data.department || "",
+        data.quarter || "", data.commonTotal || 0, data.kpiSelf || 0, data.totalSelf || 0,
+        data.rankLabel || "", data.totalReview !== null ? data.totalReview : "",
+        JSON.stringify(data.payload || {})
+      ];
+      // Update existing row for same username + quarter if found
+      const lastR = sh.getLastRow();
+      let updated = false;
+      if (lastR >= 2 && data.username) {
+        const keys = sh.getRange(2, 2, lastR - 1, 4).getValues();
+        for (let i = 0; i < keys.length; i++) {
+          if (String(keys[i][0]) === String(data.username) && String(keys[i][3]) === String(data.quarter || "")) {
+            sh.getRange(i + 2, 1, 1, rowData.length).setValues([rowData]);
+            updated = true;
+            break;
+          }
+        }
+      }
+      if (!updated) sh.appendRow(rowData);
+      return jsonOut({ ok: true, updated });
+    }
     return jsonOut({ ok: false, msg: "Unknown action" });
   } catch (err) {
     return jsonOut({ ok: false, msg: err.toString() });
@@ -1820,6 +1856,11 @@ function jsonOut(obj) {
       const btnUserLogout = document.getElementById("btnUserLogout");
       const accLbl = document.getElementById("btnAdminAccountsLabel");
       if (accLbl) accLbl.textContent = `Tài khoản GV (${accounts.length})`;
+
+      const btnExpJson = document.getElementById("btnExportJson");
+      const lblImpJson = document.getElementById("lblImportJson");
+      if (btnExpJson) btnExpJson.classList.toggle("hidden", !state.isAdmin);
+      if (lblImpJson) lblImpJson.classList.toggle("hidden", !state.isAdmin);
 
       if (state.isAdmin) {
         adminToolbar.classList.remove("hidden");
@@ -2550,15 +2591,20 @@ function jsonOut(obj) {
                 <span>Quy trình phối hợp: Giáo viên tự chấm → Nhà trường rà soát → Xuất phiếu Excel (.xlsx)</span>
               </div>
               <div class="flex flex-wrap gap-x-4 gap-y-1">
-                <span><strong>Bước 1 (GV):</strong> Tự nhập điểm 30đ + số liệu KPI 70đ → bấm <em>Lưu file</em> (.json) gửi Tổ trưởng/Nhà trường.</span>
-                <span><strong>Bước 2 (Nhà trường):</strong> Đăng nhập <em>Quản trị</em> → bấm <em>Mở file</em> của GV → nhập cột <em>Điểm sau rà soát</em>.</span>
-                <span><strong>Bước 3:</strong> Bấm <strong>Xuất phiếu Excel (.xlsx)</strong> để tải phiếu hoàn chỉnh đúng mẫu chuẩn.</span>
+                <span><strong>Giáo viên:</strong> Nhập điểm 30đ + số liệu KPI 70đ → bấm <strong>Cập nhật lên hệ thống</strong> và <strong>Xuất phiếu Excel (.xlsx)</strong> nộp tổ/trường.</span>
+                <span><strong>Nhà trường (Admin):</strong> Đăng nhập quản trị để rà soát, nhập cột <em>Điểm sau rà soát</em> và chốt xếp loại.</span>
               </div>
             </div>
-            <button type="button" data-action="export-xlsx" class="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-md transition">
-              <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
-              <span>Xuất phiếu Excel (.xlsx)</span>
-            </button>
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+              <button type="button" data-action="sync-system" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold shadow-md transition">
+                <i data-lucide="cloud-upload" class="w-4 h-4"></i>
+                <span>Cập nhật lên hệ thống</span>
+              </button>
+              <button type="button" data-action="export-xlsx" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-md transition">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                <span>Xuất phiếu Excel (.xlsx)</span>
+              </button>
+            </div>
           </div>
 
           <!-- Extra Form Metadata for Excel Header -->
@@ -3556,6 +3602,8 @@ function jsonOut(obj) {
         exportOfficialXlsx();
       } else if (action === "upload-evidence") {
         handleEvidenceUploadClick(id);
+      } else if (action === "sync-system") {
+        syncEvaluationToSystem();
       } else if (action === "fill-max-common") {
         COMMON_CRITERIA.forEach(c => { if (!c.isGroup && !c.isSubGroup) state.commonScores[c.id] = c.max; });
         saveState();
@@ -4007,6 +4055,57 @@ function jsonOut(obj) {
         showToast("Không thể kết nối Google Apps Script.", "error");
       }
     });
+
+
+    async function syncEvaluationToSystem() {
+      saveState();
+      const sc = computeFullScores();
+      const rank = getRankLabel(sc.totalSelf);
+      const url = (cloudConfig.appsScriptUrl || "").trim();
+
+      if (!url) {
+        showToast("Đã lưu dữ liệu KPI trên máy! (Nhà trường chưa gắn Link Apps Script nên chưa gửi lên Google Sheet).", "info");
+        return;
+      }
+
+      showToast("Đang cập nhật dữ liệu KPI lên hệ thống nhà trường...", "info");
+      try {
+        const resp = await fetch(url, {
+          method: "POST",
+          body: JSON.stringify({
+            action: "saveEvaluation",
+            username: (currentUser && currentUser.username) || "khach",
+            teacherName: state.teacherName || (currentUser && currentUser.name) || "",
+            department: state.department || (currentUser && currentUser.dept) || "",
+            quarter: state.quarter || "Quý IV năm 2026",
+            commonTotal: sc.commonTotal,
+            kpiSelf: sc.kpiSelf,
+            totalSelf: sc.totalSelf,
+            rankLabel: rank.label,
+            totalReview: sc.totalReview,
+            payload: {
+              selected: state.selected,
+              quantities: state.quantities,
+              commonScores: state.commonScores,
+              kpiEval: state.kpiEval,
+              emergingTasks: state.emergingTasks,
+              highlightsText: state.highlightsText
+            }
+          })
+        });
+        const data = await resp.json();
+        if (data && data.ok) {
+          showToast("Đã cập nhật kết quả KPI lên hệ thống nhà trường thành công!");
+        } else {
+          showToast("Lỗi cập nhật hệ thống: " + ((data && data.msg) || ""), "error");
+        }
+      } catch (err) {
+        showToast("Không thể kết nối hệ thống. Dữ liệu vẫn đã được lưu an toàn trên máy này.", "error");
+      }
+    }
+
+    document.getElementById("btnSyncToSystem").addEventListener("click", syncEvaluationToSystem);
+    document.getElementById("btnHeaderExportXlsx").addEventListener("click", exportOfficialXlsx);
 
     // Initial render
     render();
